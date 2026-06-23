@@ -48,7 +48,7 @@ Hệ thống được phân tách thành **3 vùng mạng độc lập** với p
 ### Vùng WAN — `192.168.168.0/24`
 | Thiết Bị | IP | Vai Trò |
 |----------|-----|---------|
-| pfSense Firewall | `192.168.168.156` | NAT, Firewall, Suricata IDS/IPS |
+| pfSense Firewall | `192.168.168.157` | NAT, Firewall, Suricata IDS/IPS |
 | Kali Linux (Attacker) | `192.168.168.154` | Máy tấn công mô phỏng |
 
 ---
@@ -156,7 +156,7 @@ Internet / WAN (192.168.168.0/24)
         ▼
 ┌───────────────────────────────┐
 │   pfSense Firewall            │
-│   WAN: 192.168.168.156        │
+│   WAN: 192.168.168.157        │
 │   LAN: 172.16.1.1             │
 │   DMZ: 10.0.0.1               │
 │   + Suricata IDS/IPS          │
