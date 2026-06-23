@@ -3,25 +3,9 @@
 > **Xây dựng hệ thống SIEM + SOAR tự động hóa ứng phó sự cố với tích hợp AI**  
 > Mở rộng nâng cao từ bài lab pfSense, bổ sung các tầng phòng thủ SIEM · SOAR · Threat Intelligence · AI-Powered Analysis
 
----
-
-## 📋 Mục Lục
-
-- [Tổng Quan](#-tổng-quan)
-- [Tính Năng Chính](#-tính-năng-chính)
-- [Kiến Trúc Hệ Thống](#-kiến-trúc-hệ-thống)
-- [SOAR Workflow](#-soar-workflow)
-- [3 Use Cases](#-3-use-cases)
-- [Công Nghệ Sử Dụng](#-công-nghệ-sử-dụng)
-- [Cấu Hình Mạng](#-cấu-hình-mạng)
-- [Luồng Dữ Liệu](#-luồng-dữ-liệu)
-- [Tác Giả](#-tác-giả)
-
----
-
 ## 🔍 Tổng Quan
 
-**SuperSOAR HomeLab** là một hệ thống bảo mật lab hoàn chỉnh mô phỏng môi trường SOC (Security Operations Center) doanh nghiệp thực tế, được triển khai trên VMware Workstation.
+**SuperSOAR HomeLab** là một hệ thống bảo mật lab mô phỏng môi trường SOC (Security Operations Center) doanh nghiệp thực tế, được triển khai trên VMware Workstation.
 
 Bài lab giải quyết bài toán: **"Làm thế nào để một SOC Analyst phát hiện và ứng phó với mối đe dọa nhanh nhất có thể mà không cần can thiệp thủ công 24/7?"**
 
