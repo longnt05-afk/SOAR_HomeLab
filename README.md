@@ -1,4 +1,5 @@
 # 🛡️ SuperSOAR HomeLab
+https://github.com/longnt05-afk/SOAR_HomeLab/blob/main/SuperSOAR_homelab/SuperSOAR_HomeLab.md
 
 > **Xây dựng hệ thống SIEM + SOAR tự động hóa ứng phó sự cố với tích hợp AI**  
 > Mở rộng nâng cao từ bài lab pfSense, bổ sung các tầng phòng thủ SIEM · SOAR · Threat Intelligence · AI-Powered Analysis
