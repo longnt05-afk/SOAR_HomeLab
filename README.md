@@ -34,12 +34,10 @@ Giải pháp: xây dựng pipeline tự động hoàn chỉnh từ thu thập lo
 
 Hệ thống được phân tách thành **3 vùng mạng độc lập** với pfSense làm trung tâm điều phối:
 
-### Vùng LAN — `172.16.1.0/24`
+### Vùng LAN — `172.16.10.0/24`
 | Thiết Bị | IP | Vai Trò |
 |----------|-----|---------|
 | Windows 10 VM | `172.16.1.10` | Endpoint giám sát — Sysmon + Splunk Universal Forwarder |
-| Ubuntu Server | `172.16.1.20` | Splunk Enterprise SIEM |
-| Ubuntu Server | `172.16.1.30` | n8n SOAR Automation |
 
 ### Vùng DMZ — `10.0.0.0/24`
 | Thiết Bị | IP | Vai Trò |
