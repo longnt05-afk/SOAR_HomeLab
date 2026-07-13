@@ -1,0 +1,23 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: or
+      rules:
+        - op: ends with
+          path: event/FILE_PATH
+          value: \psexec.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \psexec64.exe
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: PSEXESVC
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - PsExec Lateral Movement

@@ -1,0 +1,149 @@
+# LC Ransomware VIP Pro - L2 LOLBin Download Block
+# Purpose: block LOLBin download when launched from Office/browser/archive/PDF/script parent.
+# Blocking mode: yes, because parent context is abnormal for certutil/bitsadmin/curl/wget payload download.
+
+detect:
+  event: NEW_PROCESS
+  op: and
+  rules:
+    - op: is windows
+
+    # Parent context makes it high-confidence.
+    - op: or
+      rules:
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: winword.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: excel.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: powerpnt.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: outlook.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: chrome.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: msedge.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: firefox.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: acrord32.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: acrobat.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: winrar.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: 7zfm.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: wscript.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: mshta.exe
+          file name: true
+          case sensitive: false
+
+    # LOLBin downloader.
+    - op: or
+      rules:
+        - op: is
+          path: event/FILE_PATH
+          value: certutil.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: bitsadmin.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: curl.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: wget.exe
+          file name: true
+          case sensitive: false
+
+    - op: matches
+      path: event/COMMAND_LINE
+      re: 'https?://[^\s"'']+'
+      case sensitive: false
+
+    - op: matches
+      path: event/COMMAND_LINE
+      re: '.*(\\Users\\[^\\]+\\(Downloads|Desktop|AppData)|\\Users\\Public|\\Temp\\).*\.(exe|dll|js|jse|vbs|vbe|hta|ps1|bat|cmd|lnk|scr|iso|img)(\s|$|"|'').*'
+      case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Ransomware VIP L2 LOLBin Download Payload Block
+    publish: true
+    priority: 2
+    metadata:
+      level: high
+      tactic: TA0011,TA0002
+      technique: T1105,T1218
+      description: Office/browser/archive/PDF/script spawned certutil/bitsadmin/curl/wget to download dangerous payload. Block current tree.
+    suppression:
+      max_count: 3
+      period: 30m
+      is_global: false
+      keys:
+        - '{{ .routing.sid }}'
+        - '{{ .event.PARENT.FILE_PATH }}'
+        - '{{ .event.COMMAND_LINE }}'
+        - 'vip-l2-lolbin-download-block'
+
+  - action: task
+    command: deny_tree <<routing/this>>
+    investigation: vip-l2-deny-lolbin-download-tree
+    suppression:
+      max_count: 3
+      period: 30m
+      is_global: false
+      keys:
+        - '{{ .routing.sid }}'
+        - '{{ .event.PROCESS_ID }}'
+        - 'vip-l2-deny-lolbin-download-tree'
+
+  - action: add tag
+    tag: lc-vip-lolbin-download-blocked
+    ttl: 7200
+    entire_device: false

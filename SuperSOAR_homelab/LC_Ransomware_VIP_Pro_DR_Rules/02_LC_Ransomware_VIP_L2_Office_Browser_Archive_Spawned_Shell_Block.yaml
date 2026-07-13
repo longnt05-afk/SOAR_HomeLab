@@ -1,0 +1,209 @@
+# LC Ransomware VIP Pro - L2
+# Purpose: Office/browser/PDF/archive app spawned suspicious shell/LOLBins. Kill child process tree.
+# Blocking mode: yes, but only with strong parent + suspicious child conditions.
+
+detect:
+  event: NEW_PROCESS
+  op: and
+  rules:
+    - op: is windows
+
+    # Parent is a common initial-access app: Office, mail, browser, PDF reader, archive tools.
+    - op: or
+      rules:
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: winword.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: excel.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: powerpnt.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: outlook.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: chrome.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: msedge.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: firefox.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: acrord32.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: acrobat.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: winrar.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/PARENT/FILE_PATH
+          value: 7zfm.exe
+          file name: true
+          case sensitive: false
+
+    # Child is a shell, script interpreter or LOLBin often abused by malware.
+    - op: or
+      rules:
+        - op: is
+          path: event/FILE_PATH
+          value: powershell.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: pwsh.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: cmd.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: wscript.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: cscript.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: mshta.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: rundll32.exe
+          file name: true
+          case sensitive: false
+        - op: is
+          path: event/FILE_PATH
+          value: regsvr32.exe
+          file name: true
+          case sensitive: false
+
+    # The child must also have suspicious behavior, reducing false positives.
+    - op: or
+      rules:
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -enc
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: encodedcommand
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: frombase64string
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: downloadstring
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: downloadfile
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: invoke-webrequest
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: invoke-expression
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: bypass
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: http://
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: https://
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \appdata\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \temp\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \downloads\
+          case sensitive: false
+        - op: matches
+          path: event/COMMAND_LINE
+          re: '.*\.(js|jse|vbs|vbe|hta|lnk|scr|dll|ps1|bat|cmd|iso|img)(\s|$|"|\'')'
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Ransomware VIP L2 Office Browser Archive Spawned Suspicious Shell Block
+    publish: true
+    priority: 2
+    metadata:
+      level: high
+      tactic: TA0001,TA0002,TA0005
+      technique: T1204.002,T1059,T1218
+      description: Office/browser/PDF/archive spawned suspicious shell or LOLBin. Block child tree only.
+    suppression:
+      max_count: 3
+      period: 30m
+      is_global: false
+      keys:
+        - '{{ .routing.sid }}'
+        - '{{ .event.PARENT.FILE_PATH }}'
+        - '{{ .event.FILE_PATH }}'
+        - 'vip-l2-office-browser-shell'
+
+  - action: task
+    command: deny_tree <<routing/this>>
+    investigation: vip-l2-deny-child-tree
+    suppression:
+      max_count: 3
+      period: 30m
+      is_global: false
+      keys:
+        - '{{ .routing.sid }}'
+        - '{{ .event.PROCESS_ID }}'
+        - 'vip-l2-deny-child-tree'
+
+  - action: add tag
+    tag: lc-vip-l2-blocked
+    ttl: 7200
+    entire_device: false

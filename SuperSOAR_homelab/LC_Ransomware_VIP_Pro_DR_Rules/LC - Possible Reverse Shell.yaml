@@ -1,0 +1,31 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: or
+      rules:
+        - op: contains
+          path: event/COMMAND_LINE
+          value: nc.exe
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: ncat
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: TCPClient
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: Net.Sockets
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: /bin/bash -i
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Possible Reverse Shell

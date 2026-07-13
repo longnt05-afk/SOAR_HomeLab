@@ -1,0 +1,35 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: ends with
+      path: event/FILE_PATH
+      value: \\certutil.exe
+      case sensitive: false
+    - op: or
+      rules:
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -urlcache
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -decode
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -encode
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -decodehex
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: http
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Certutil Suspicious Usage

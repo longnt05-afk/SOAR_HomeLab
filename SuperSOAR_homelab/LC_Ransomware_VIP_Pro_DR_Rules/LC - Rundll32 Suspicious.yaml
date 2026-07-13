@@ -1,0 +1,35 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: ends with
+      path: event/FILE_PATH
+      value: \\rundll32.exe
+      case sensitive: false
+    - op: or
+      rules:
+        - op: contains
+          path: event/COMMAND_LINE
+          value: http
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: javascript
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: shell32.dll,ShellExec_RunDLL
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \\Temp\\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \\AppData\\
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Rundll32 Suspicious

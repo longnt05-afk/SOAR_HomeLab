@@ -1,0 +1,91 @@
+# LC Ransomware VIP Pro - L2 IOC Filename Executed
+# Purpose: suspicious/double-extension filename executed or invoked by script host. Kill current process tree.
+# Blocking mode: yes, because the suspicious file has moved from "downloaded" to "executed".
+
+detect:
+  event: NEW_PROCESS
+  op: and
+  rules:
+    - op: is windows
+
+    # Execution or invocation from user-writable paths.
+    - op: or
+      rules:
+        - op: contains
+          path: event/FILE_PATH
+          value: \Users\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \Users\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \Downloads\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \AppData\
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: \Temp\
+          case sensitive: false
+
+    # Suspicious filename in FILE_PATH or COMMAND_LINE.
+    - op: or
+      rules:
+        - op: matches
+          path: event/FILE_PATH
+          file name: true
+          re: '.*\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|jpg|jpeg|png|gif|wav|mp3|zip|rar|7z)\.(exe|scr|js|jse|vbs|vbe|hta|bat|cmd|ps1|lnk)$'
+          case sensitive: false
+        - op: matches
+          path: event/COMMAND_LINE
+          re: '.*(invoice_.*\.(js|jse|vbs|vbe|hta|lnk|scr|exe)|payment_.*\.(js|jse|vbs|vbe|hta|lnk|scr|exe)|scan_.*\.exe|order_details.*\.pdf\.exe|voice_message_.*\.wav\.(js|vbs|exe|scr)|.*_request\.lnk).*'
+          case sensitive: false
+        - op: matches
+          path: event/COMMAND_LINE
+          re: '.*\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|jpg|jpeg|png|gif|wav|mp3|zip|rar|7z)\.(exe|scr|js|jse|vbs|vbe|hta|bat|cmd|ps1|lnk)(\s|$|"|\'').*'
+          case sensitive: false
+        - op: matches
+          path: event/COMMAND_LINE
+          re: '.*\\[a-zA-Z0-9]{6,12}\.(iso|img)(\s|$|"|\'').*'
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Ransomware VIP L2 Suspicious Filename Executed Block
+    publish: true
+    priority: 2
+    metadata:
+      level: high
+      tactic: TA0001,TA0002,TA0005
+      technique: T1036.007,T1204.002
+      description: Suspicious filename IOC or double-extension file executed/invoked from user path. Block current tree.
+    suppression:
+      max_count: 3
+      period: 30m
+      is_global: false
+      keys:
+        - '{{ .routing.sid }}'
+        - '{{ .event.FILE_PATH }}'
+        - '{{ .event.COMMAND_LINE }}'
+        - 'vip-l2-suspicious-filename-executed'
+
+  - action: task
+    command: deny_tree <<routing/this>>
+    investigation: vip-l2-deny-suspicious-filename-tree
+    suppression:
+      max_count: 3
+      period: 30m
+      is_global: false
+      keys:
+        - '{{ .routing.sid }}'
+        - '{{ .event.PROCESS_ID }}'
+        - 'vip-l2-deny-suspicious-filename-tree'
+
+  - action: add tag
+    tag: lc-vip-suspicious-filename-blocked
+    ttl: 7200
+    entire_device: false

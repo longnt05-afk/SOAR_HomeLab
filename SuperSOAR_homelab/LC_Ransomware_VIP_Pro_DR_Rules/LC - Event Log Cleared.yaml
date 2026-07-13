@@ -1,0 +1,23 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: or
+      rules:
+        - op: contains
+          path: event/COMMAND_LINE
+          value: wevtutil cl
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: Clear-EventLog
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: wevtutil.exe clear-log
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Event Log Cleared

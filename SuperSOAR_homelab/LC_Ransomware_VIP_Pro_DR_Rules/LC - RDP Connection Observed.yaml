@@ -1,0 +1,12 @@
+detect:
+  event: NETWORK_CONNECTIONS
+  op: and
+  rules:
+    - op: is windows
+    - op: is
+      path: event/NETWORK_ACTIVITY/DESTINATION/PORT
+      value: 3389
+
+respond:
+  - action: report
+    name: LC - RDP Connection Observed

@@ -1,0 +1,13 @@
+detect:
+  op: and
+  event: SENSITIVE_PROCESS_ACCESS
+  rules:
+    - op: is windows
+    - op: ends with
+      path: event/TARGET/FILE_PATH
+      value: \\lsass.exe
+      case sensitive: false
+
+respond:
+  - action: report
+    name: LC - LSASS Memory Access

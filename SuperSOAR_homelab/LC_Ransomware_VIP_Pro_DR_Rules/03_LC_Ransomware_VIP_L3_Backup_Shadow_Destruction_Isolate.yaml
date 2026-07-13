@@ -1,0 +1,145 @@
+# LC Ransomware VIP Pro - L3
+# Purpose: confirmed ransomware-style recovery destruction. Kill parent tree and isolate host.
+# Blocking mode: critical. Use after testing.
+
+detect:
+  event: NEW_PROCESS
+  op: and
+  rules:
+    - op: is windows
+    - op: or
+      rules:
+        - op: and
+          rules:
+            - op: is
+              path: event/FILE_PATH
+              value: vssadmin.exe
+              file name: true
+              case sensitive: false
+            - op: contains
+              path: event/COMMAND_LINE
+              value: delete shadows
+              case sensitive: false
+        - op: and
+          rules:
+            - op: is
+              path: event/FILE_PATH
+              value: wmic.exe
+              file name: true
+              case sensitive: false
+            - op: contains
+              path: event/COMMAND_LINE
+              value: shadowcopy delete
+              case sensitive: false
+        - op: and
+          rules:
+            - op: is
+              path: event/FILE_PATH
+              value: wbadmin.exe
+              file name: true
+              case sensitive: false
+            - op: or
+              rules:
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: delete catalog
+                  case sensitive: false
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: delete backup
+                  case sensitive: false
+        - op: and
+          rules:
+            - op: is
+              path: event/FILE_PATH
+              value: bcdedit.exe
+              file name: true
+              case sensitive: false
+            - op: or
+              rules:
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: recoveryenabled no
+                  case sensitive: false
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: bootstatuspolicy ignoreallfailures
+                  case sensitive: false
+        - op: and
+          rules:
+            - op: or
+              rules:
+                - op: is
+                  path: event/FILE_PATH
+                  value: powershell.exe
+                  file name: true
+                  case sensitive: false
+                - op: is
+                  path: event/FILE_PATH
+                  value: pwsh.exe
+                  file name: true
+                  case sensitive: false
+            - op: or
+              rules:
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: win32_shadowcopy
+                  case sensitive: false
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: delete()
+                  case sensitive: false
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: remove-wmiobject
+                  case sensitive: false
+                - op: contains
+                  path: event/COMMAND_LINE
+                  value: get-ciminstance
+                  case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Ransomware VIP L3 Backup Shadow Destruction Isolate
+    publish: true
+    priority: 1
+    metadata:
+      level: critical
+      tactic: TA0040
+      technique: T1490
+      description: Backup/shadow copy deletion or Windows recovery disabling detected. Kill launcher and isolate host.
+    suppression:
+      max_count: 2
+      period: 15m
+      is_global: false
+      keys:
+        - "{{ .routing.sid }}"
+        - "{{ .event.FILE_PATH }}"
+        - "{{ .event.COMMAND_LINE }}"
+        - "vip-l3-shadow-destruction"
+
+  - action: task
+    command: deny_tree <<routing/parent>>
+    investigation: vip-l3-deny-parent-tree
+    suppression:
+      max_count: 2
+      period: 15m
+      is_global: false
+      keys:
+        - "{{ .routing.sid }}"
+        - "{{ .event.PARENT_PROCESS_ID }}"
+        - "vip-l3-deny-parent-tree"
+
+  - action: isolate network
+    suppression:
+      max_count: 1
+      period: 24h
+      is_global: false
+      keys:
+        - "{{ .routing.sid }}"
+        - "vip-l3-isolate-network"
+
+  - action: add tag
+    tag: lc-vip-ransomware-confirmed
+    ttl: 86400
+    entire_device: true

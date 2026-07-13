@@ -1,0 +1,43 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: or
+      rules:
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\certutil.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\bitsadmin.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\mshta.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\rundll32.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\regsvr32.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\wmic.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\cscript.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\wscript.exe
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - LOLBin Execution

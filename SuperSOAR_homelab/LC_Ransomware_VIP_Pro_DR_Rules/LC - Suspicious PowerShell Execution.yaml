@@ -1,0 +1,77 @@
+detect:
+  op: and
+  event: NEW_PROCESS
+  rules:
+    - op: is windows
+    - op: or
+      rules:
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\powershell.exe
+          case sensitive: false
+        - op: ends with
+          path: event/FILE_PATH
+          value: \\pwsh.exe
+          case sensitive: false
+    - op: or
+      rules:
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -enc
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: EncodedCommand
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: FromBase64String
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: DownloadString
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: DownloadFile
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: Invoke-WebRequest
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: IEX(
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: Invoke-Expression
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: Net.WebClient
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -nop
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: bypass
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -w hidden
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: -windowstyle hidden
+          case sensitive: false
+        - op: contains
+          path: event/COMMAND_LINE
+          value: Reflection.Assembly
+          case sensitive: false
+
+respond:
+  - action: report
+    name: LC - Suspicious PowerShell Execution
