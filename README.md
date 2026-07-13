@@ -30,7 +30,7 @@ Giải pháp: xây dựng pipeline tự động hoàn chỉnh từ thu thập lo
 
 ## 🏗️ Kiến Trúc Hệ Thống
 
-![Network Architecture](SuperSOAR_HomeLab_images/img_002_bc809946.png)
+![Network Architecture](SuperSOAR_homelab/SuperSOAR_HomeLab_images/img_002_bc809946.png)
 
 Hệ thống được phân tách thành **3 vùng mạng độc lập** với pfSense làm trung tâm điều phối:
 
