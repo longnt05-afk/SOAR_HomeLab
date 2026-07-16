@@ -5,8 +5,7 @@
 DFIR-IRIS can successfully execute the IrisMISP enrichment task and store
 the returned MISP report, but the **MISP Report** tab may not open in the
 IOC modal.
-DFIR-IRIS\Images\st-01.png
-DFIR-IRIS\Images\st-02.png
+![img](Images/st-01.png)
 The issue was reproduced on:
 
 - DFIR-IRIS `v2.4.29`
@@ -29,10 +28,10 @@ Successfully processed hook on_manual_trigger_ioc
 ```
 
 However, the report tab does not display its content.
-
+![img](Images/st-05.png)
 Browser DOM inspection shows numeric-first identifiers such as:
-DFIR-IRIS\Images\st-02.png
-DFIR-IRIS\Images\st-02.5.png
+![img](Images/st-02.png)
+![img](Images/st-02.5.png)
 
 ```text
 TAB HREF: #3_misp_report
@@ -52,7 +51,7 @@ numeric-first format:
 ```
 
 The hotfix changes the identifier to an alphabetic-first format:
-
+![img](Images/st-02.6.png)
 ```text
 attr_3_misp_report
 ```
