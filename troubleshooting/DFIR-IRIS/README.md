@@ -2,6 +2,9 @@
 
 This repository contains a focused hotfix for the IrisMISP report-tab
 rendering issue reproduced on DFIR-IRIS `v2.4.29`.
+
+BUG Link : https://github.com/dfir-iris/iris-web/issues/1078
+
 ## Before
 
 ![Before](Images/st-01.png)
