@@ -2,10 +2,13 @@
 
 This repository contains a focused hotfix for the IrisMISP report-tab
 rendering issue reproduced on DFIR-IRIS `v2.4.29`.
-Before
-DFIR-IRIS\Images\st-01.png
-After
-DFIR-IRIS\Images\st-04.png
+## Before
+
+![Before](Images/st-01.png)
+
+## After
+
+![After](Images/st-04.png)
 Read [`00_BUG_REPORT.md`](00_BUG_REPORT.md) first for the technical
 description, observed symptoms, root cause, affected files, and patch
 scope.
