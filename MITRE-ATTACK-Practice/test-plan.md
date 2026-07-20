@@ -10,7 +10,7 @@ This ransomware simulation campaign is designed to validate endpoint, network, E
 - T1548.002 - Bypass User Account Control [Advanced / Optional]
 
 ### Phase 3 - Defense Evasion
-- T1562.001 - Disable or Modify Tools
+- T1685.19 - Disable or Modify Tools
 - T1070.001 - Clear Windows Event Logs
 - T1036.007 - Double File Extension
 - T1218.005 - Mshta [Optional]
