@@ -3,9 +3,9 @@
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:050b0d,45:0b3d2e,100:00ff88&height=220&section=header&text=SuperSOC%20%2F%20SuperSOAR%20HomeLab&fontSize=40&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=Detection%20Engineering%20%E2%80%A2%20Threat%20Validation%20%E2%80%A2%20Automated%20Incident%20Response&descAlignY=58&descSize=17" width="100%" alt="SuperSOC / SuperSOAR HomeLab"/>
 
 <p>
-  <img src="https://img.shields.io/badge/LAB_STATUS-ACTIVE-00c853?style=for-the-badge&labelColor=0b0f14" alt="Lab status: active"/>
-  <img src="https://img.shields.io/badge/FOCUS-SOC_%7C_DFIR_%7C_DETECTION-00e676?style=for-the-badge&labelColor=0b0f14" alt="Focus: SOC, DFIR, detection"/>
-  <img src="https://img.shields.io/badge/SCOPE-CONTROLLED_HOME_LAB-2ea043?style=for-the-badge&labelColor=0b0f14" alt="Controlled home lab"/>
+  <img src="https://img.shields.io/badge/LAB_STATUS-ACTIVE-00c853?style=for-the-badge&labelColor=0b0f14" alt="Trạng thái lab: đang hoạt động"/>
+  <img src="https://img.shields.io/badge/FOCUS-SOC_%7C_DFIR_%7C_DETECTION-00e676?style=for-the-badge&labelColor=0b0f14" alt="Trọng tâm: SOC, DFIR và Detection"/>
+  <img src="https://img.shields.io/badge/SCOPE-CONTROLLED_HOME_LAB-2ea043?style=for-the-badge&labelColor=0b0f14" alt="Phạm vi: HomeLab có kiểm soát"/>
 </p>
 
 <p>
@@ -24,164 +24,164 @@
   <img src="https://img.shields.io/badge/MITRE_ATT%26CK-ED1C24?style=for-the-badge&logoColor=ffffff" alt="MITRE ATT&CK"/>
 </p>
 
-### An engineering-focused blue-team lab connecting telemetry, detection, enrichment, case management, and investigation evidence
+### Phòng lab Blue Team kết nối Telemetry, Detection, Enrichment, Case Management và Incident Response
 
-[Architecture](#architecture) ·
-[Detection Pipeline](#detection-to-response-pipeline) ·
-[Validated Scenarios](#validated-attack-scenarios) ·
-[Case Workflow](#incident-response-workflow) ·
-[Roadmap](#engineering-roadmap)
+[Kiến trúc](#kiến-trúc-hệ-thống-architecture) ·
+[Detection Pipeline](#quy-trình-detection-to-response) ·
+[Kịch bản kiểm thử](#các-kịch-bản-tấn-công-đã-kiểm-thử) ·
+[Incident Workflow](#quy-trình-ứng-phó-sự-cố-incident-response-workflow) ·
+[Roadmap](#lộ-trình-phát-triển-engineering-roadmap)
 
 </div>
 
 ---
 
-## Executive Summary
+## Tổng quan dự án (Executive Summary)
 
-**SuperSOC / SuperSOAR HomeLab** is a VMware-based security operations lab built to practice the full detection-to-response lifecycle:
+**SuperSOC / SuperSOAR HomeLab** là phòng lab Security Operations Center được xây dựng trên VMware để thực hành trọn vẹn quy trình **Detection-to-Response**:
 
-1. collect endpoint, firewall, IDS/IPS, network, and EDR telemetry;
-2. centralize and investigate events in Splunk Enterprise;
-3. build SPL- and Sigma-aligned detections;
-4. normalize fields, add asset context, score risk, correlate related events, and reduce duplicate alerts;
-5. enrich indicators with threat-intelligence sources;
-6. create and manage alerts and cases in DFIR-IRIS;
-7. validate coverage with Atomic Red Team and controlled Kali Linux simulations;
-8. document the timeline, evidence, verdict, response decision, and lessons learned.
+1. thu thập Telemetry từ Endpoint, Firewall, IDS/IPS, Network và EDR;
+2. tập trung hóa, tìm kiếm và điều tra sự kiện trên Splunk Enterprise;
+3. xây dựng Detection bằng SPL, Sigma và custom EDR rules;
+4. chuẩn hóa dữ liệu, bổ sung Asset Context, tính Risk Score, Correlation và Deduplication;
+5. làm giàu IOC bằng các nguồn Threat Intelligence;
+6. tạo Alert, quản lý Case và theo dõi Investigation trên DFIR-IRIS;
+7. kiểm thử khả năng phát hiện bằng Atomic Red Team và các mô phỏng có kiểm soát từ Kali Linux;
+8. tài liệu hóa Timeline, Evidence, Verdict, Response Decision và Lessons Learned.
 
-This project is not presented as a production SOC or a fully autonomous response platform. It is a controlled home lab that demonstrates practical SOC analysis, detection engineering, security automation, threat validation, and incident documentation.
+Dự án không được giới thiệu như một Production SOC hoặc nền tảng tự động phản ứng hoàn toàn. Đây là một **Controlled HomeLab** nhằm chứng minh năng lực thực hành SOC Analysis, Detection Engineering, Security Automation, Threat Validation và Incident Documentation.
 
-### What this project demonstrates
+### Năng lực kỹ thuật được thể hiện
 
-| Capability | Practical implementation |
+| Năng lực | Cách triển khai thực tế |
 |---|---|
-| Centralized monitoring | Splunk Enterprise receives Windows, Sysmon, PowerShell, pfSense, Suricata, Zeek, and LimaCharlie telemetry |
-| Endpoint visibility | Sysmon, Windows Event Logs, PowerShell logging, Splunk Universal Forwarder, and LimaCharlie EDR |
-| Network visibility | pfSense firewall logs, Suricata alerts, and Zeek network metadata |
-| Detection engineering | SPL correlation searches, EDR detection rules, Sigma rules, allowlists, and ATT&CK mapping |
-| Alert engineering | Field normalization, asset enrichment, severity/risk scoring, time-window correlation, and deduplication |
-| Security orchestration | n8n workflows for controlled enrichment, AI-assisted analysis, and notification |
-| Incident response | DFIR-IRIS alert triage, case creation, assignment, tasks, timeline analysis, IOC handling, notes, and closure |
-| Threat intelligence | MISP, VirusTotal, and AbuseIPDB enrichment where an investigation contains relevant observables |
-| Adversary emulation | Atomic Red Team and controlled Kali Linux activity mapped to MITRE ATT&CK |
-| Analyst reporting | Reproducible investigation reports with process chains, screenshots, query evidence, impact, and verdict |
+| Centralized Monitoring | Splunk Enterprise tiếp nhận Windows, Sysmon, PowerShell, pfSense, Suricata, Zeek và LimaCharlie Telemetry |
+| Endpoint Visibility | Windows Event Logs, Sysmon, PowerShell Logging, Splunk Universal Forwarder và LimaCharlie EDR |
+| Network Visibility | pfSense Firewall Logs, Suricata Alerts và Zeek Network Metadata |
+| Detection Engineering | SPL Correlation Searches, EDR Detection Rules, Sigma Rules, Allowlists và MITRE ATT&CK Mapping |
+| Alert Engineering | Field Normalization, Asset Enrichment, Severity/Risk Scoring, Time-window Correlation và Deduplication |
+| Security Orchestration | n8n Workflows phục vụ Enrichment, AI-assisted Analysis có kiểm soát và Notification |
+| Incident Response | DFIR-IRIS hỗ trợ Alert Triage, Case Creation, Assignment, Tasks, Timeline, IOC Handling, Notes và Closure |
+| Threat Intelligence | MISP, VirusTotal và AbuseIPDB được sử dụng khi Case có Observable phù hợp |
+| Adversary Emulation | Atomic Red Team và Kali Linux được sử dụng trong môi trường cô lập, có kiểm soát |
+| Analyst Reporting | Investigation Reports có Process Chain, Screenshots, SPL Evidence, Impact Assessment và Verdict |
 
 ---
 
-## Architecture
+## Kiến trúc hệ thống (Architecture)
 
-### Network segmentation status
+### Trạng thái phân vùng mạng
 
-The repository distinguishes between the **current lab deployment** and the **target segmented architecture**. This keeps the design recruiter-friendly without claiming that an unimplemented security control is already operational.
+Repository phân biệt rõ **Current Lab Deployment** và **Target Segmented Architecture**. Cách trình bày này vẫn thể hiện tư duy thiết kế mạng chuyên nghiệp nhưng không biến một biện pháp bảo mật chưa triển khai thành thông tin sai.
 
-| Area | Current lab deployment | Target hardening design |
+| Hạng mục | Mô hình đang triển khai | Thiết kế Hardening mục tiêu |
 |---|---|---|
-| SOC services | VMnet2 — `172.16.1.0/24` | VMnet2 — `172.16.1.0/24` |
-| Windows 10 victim | `172.16.1.10` on the shared VMnet2 lab segment | VMnet4 — `172.16.10.10` on a dedicated endpoint/LAN segment |
-| LAN gateway | Shared pfSense interface `172.16.1.1` | Dedicated pfSense VMnet4 interface `172.16.10.1` |
-| Isolation model | Home-lab resource constraint; services share one internal virtual segment | Inter-zone filtering, least privilege, and default-deny policy between LAN, SOC, DMZ, and WAN |
-| Diagram below | Represents the target security architecture | Planned segmentation/hardening milestone |
+| SOC Services | VMnet2 — `172.16.1.0/24` | VMnet2 — `172.16.1.0/24` |
+| Windows 10 Victim | `172.16.1.10`, đang dùng chung VMnet2 | VMnet4 — `172.16.10.10`, tách thành Endpoint/LAN riêng |
+| LAN Gateway | Dùng chung pfSense Interface `172.16.1.1` | Dedicated pfSense VMnet4 Interface `172.16.10.1` |
+| Isolation Model | Giới hạn tài nguyên HomeLab nên các máy dùng chung Internal Virtual Segment | Inter-zone Filtering, Least Privilege và Default-deny giữa LAN, SOC, DMZ và WAN |
+| Sơ đồ bên dưới | Thể hiện Target Architecture | Planned Segmentation / Hardening Milestone |
 
 > [!IMPORTANT]
-> The VMnet4 endpoint network (`172.16.10.0/24`) shown below is a **target architecture**, not evidence that VMnet4 is already deployed. The current Windows 10 victim remains at `172.16.1.10` until the migration and firewall rules are implemented and validated.
+> VMnet4 với subnet `172.16.10.0/24` trong sơ đồ là **Target Architecture**, chưa phải bằng chứng rằng VMnet4 đã được triển khai. Windows 10 Victim hiện vẫn sử dụng địa chỉ `172.16.1.10` cho đến khi hoàn thành Migration, Firewall Rules và Validation.
 
-### Target segmented architecture
+### Target Segmented Architecture
 
 <p align="center">
-  <img src="SuperSOAR_homelab/SuperSOAR_HomeLab_images/img_002_bc809946.png" width="100%" alt="Target segmented SuperSOC architecture"/>
+  <img src="SuperSOAR_homelab/SuperSOAR_HomeLab_images/img_002_bc809946.png" width="100%" alt="Kiến trúc phân vùng mục tiêu của SuperSOC"/>
 </p>
 
-<p align="center"><em>Target design: SOC services on VMnet2, DMZ on VMnet3, victim endpoint on planned VMnet4, and controlled attack traffic from the VMware NAT/WAN segment.</em></p>
+<p align="center"><em>Thiết kế mục tiêu: SOC Services trên VMnet2, DMZ trên VMnet3, Victim Endpoint trên VMnet4 dự kiến và Attack Traffic có kiểm soát từ VMware NAT/WAN.</em></p>
 
-### Current lab inventory
+### Danh sách tài sản hiện tại (Current Asset Inventory)
 
-| Zone | Component | Address | Primary role |
+| Vùng mạng | Thành phần | Địa chỉ | Vai trò chính |
 |---|---|---:|---|
-| SOC / VMnet2 | pfSense internal gateway | `172.16.1.1` | Routing, firewall policy, NAT, IDS/IPS integration |
-| SOC / VMnet2 | Windows 10 victim | `172.16.1.10` | Endpoint telemetry and controlled attack simulation target |
-| SOC / VMnet2 | Splunk Enterprise | `172.16.1.20` | SIEM, search, dashboards, correlation, and alerting |
-| SOC / VMnet2 | n8n | `172.16.1.30` | Enrichment, workflow orchestration, and notifications |
-| SOC / VMnet2 | Zeek NSM | `172.16.1.40` | Network metadata and protocol visibility |
-| SOC / VMnet2 | DFIR-IRIS | `172.16.1.50` | Alert triage, case management, tasks, and investigation timeline |
-| SOC / VMnet2 | MISP | `172.16.1.60` | Threat-intelligence and IOC context |
-| DMZ / VMnet3 | Windows Server 2012 R2 | `10.0.0.20` | MDaemon mail, DNS, and IIS lab services |
-| WAN / VMware NAT | Kali Linux | `192.168.168.154` | Authorized adversary emulation |
+| SOC / VMnet2 | pfSense Internal Gateway | `172.16.1.1` | Routing, Firewall Policy, NAT và tích hợp IDS/IPS |
+| SOC / VMnet2 | Windows 10 Victim | `172.16.1.10` | Endpoint Telemetry và mục tiêu mô phỏng tấn công |
+| SOC / VMnet2 | Splunk Enterprise | `172.16.1.20` | SIEM, Search, Dashboard, Correlation và Alerting |
+| SOC / VMnet2 | n8n | `172.16.1.30` | Enrichment, Workflow Orchestration và Notification |
+| SOC / VMnet2 | Zeek NSM | `172.16.1.40` | Network Metadata và Protocol Visibility |
+| SOC / VMnet2 | DFIR-IRIS | `172.16.1.50` | Alert Triage, Case Management, Tasks và Investigation Timeline |
+| SOC / VMnet2 | MISP | `172.16.1.60` | Threat Intelligence và IOC Context |
+| DMZ / VMnet3 | Windows Server 2012 R2 | `10.0.0.20` | MDaemon Mail, DNS và IIS Lab Services |
+| WAN / VMware NAT | Kali Linux | `192.168.168.154` | Authorized Adversary Emulation |
 
-### Target firewall policy
+### Target Firewall Policy
 
-The planned VMnet4 migration is intended to enforce the following policy:
+Kế hoạch Migration sang VMnet4 hướng đến Policy sau:
 
-| Source | Destination | Service | Policy | Purpose |
+| Nguồn | Đích | Service | Policy | Mục đích |
 |---|---|---|---|---|
-| Endpoint LAN | Splunk | TCP `9997` | Allow | Splunk Universal Forwarder telemetry |
-| Endpoint LAN | LimaCharlie cloud | HTTPS `443` | Allow | EDR sensor communication |
-| Endpoint LAN | SOC services | Any other | Deny by default | Limit endpoint-to-management-plane access |
-| SOC admin hosts | Endpoint LAN | Required management ports only | Restricted allow | Investigation and approved administration |
-| DMZ | SOC collectors | Configured log-ingestion ports | Restricted allow | Centralized logging without broad DMZ access |
-| WAN / attacker zone | Internal zones | Explicit test services only | Deny by default | Keep simulations scoped and reproducible |
+| Endpoint LAN | Splunk | TCP `9997` | Allow | Truyền Telemetry từ Splunk Universal Forwarder |
+| Endpoint LAN | LimaCharlie Cloud | HTTPS `443` | Allow | EDR Sensor Communication |
+| Endpoint LAN | SOC Services | Các dịch vụ khác | Deny by default | Hạn chế Endpoint truy cập Management Plane |
+| SOC Admin Hosts | Endpoint LAN | Chỉ các Management Ports cần thiết | Restricted allow | Investigation và Administration đã được phê duyệt |
+| DMZ | SOC Collectors | Các Log-ingestion Ports đã cấu hình | Restricted allow | Centralized Logging nhưng không mở rộng quyền truy cập từ DMZ |
+| WAN / Attacker Zone | Internal Zones | Chỉ các Test Services được chỉ định | Deny by default | Giữ Attack Simulation đúng phạm vi và có thể tái lập |
 
 ---
 
-## Detection-to-Response Pipeline
+## Quy trình Detection-to-Response
 
 ```mermaid
 flowchart TD
-    A["Endpoint telemetry<br/>Windows • Sysmon • PowerShell • LimaCharlie"] --> E["Splunk Enterprise"]
-    B["Network telemetry<br/>pfSense • Suricata • Zeek"] --> E
-    C["Controlled simulations<br/>Atomic Red Team • Kali Linux"] --> A
+    A["Endpoint Telemetry<br/>Windows • Sysmon • PowerShell • LimaCharlie"] --> E["Splunk Enterprise"]
+    B["Network Telemetry<br/>pfSense • Suricata • Zeek"] --> E
+    C["Controlled Simulation<br/>Atomic Red Team • Kali Linux"] --> A
     C --> B
-    E --> F["Detection engineering<br/>SPL • Sigma • EDR rules"]
-    F --> G["Alert engineering<br/>Normalize • Enrich • Score • Correlate • Deduplicate"]
-    G --> H["DFIR-IRIS<br/>Alert triage and case management"]
-    H --> I["Threat intelligence<br/>MISP • VirusTotal • AbuseIPDB"]
-    H --> J["Analyst workflow<br/>Timeline • Tasks • IOCs • Verdict • Closure"]
-    G --> K["n8n automation path<br/>Controlled enrichment • AI assistance • Notification"]
+    E --> F["Detection Engineering<br/>SPL • Sigma • EDR Rules"]
+    F --> G["Alert Engineering<br/>Normalize • Enrich • Score • Correlate • Deduplicate"]
+    G --> H["DFIR-IRIS<br/>Alert Triage và Case Management"]
+    H --> I["Threat Intelligence<br/>MISP • VirusTotal • AbuseIPDB"]
+    H --> J["Analyst Workflow<br/>Timeline • Tasks • IOCs • Verdict • Closure"]
+    G --> K["n8n Automation<br/>Enrichment • AI Assistance • Notification"]
 ```
 
-### Pipeline stages
+### Các giai đoạn xử lý
 
-| Stage | Engineering focus | Output |
+| Giai đoạn | Trọng tâm kỹ thuật | Kết quả |
 |---|---|---|
-| 1. Collection | Forward selected endpoint and network telemetry while controlling noise | Searchable events in Splunk |
-| 2. Normalization | Map inconsistent source fields into common host, user, process, network, rule, and severity fields | Stable detection schema |
-| 3. Context | Add asset role, criticality, owner, zone, and allowlist context where available | Analyst-ready event context |
-| 4. Detection | Apply SPL, Sigma-aligned logic, EDR rules, thresholds, and behavioral patterns | Candidate security events |
-| 5. Correlation | Group related activity by host, rule, process chain, and time window | One activity chain instead of isolated micro-alerts |
-| 6. Risk scoring | Combine source severity, rule confidence, asset value, and behavior | Prioritized alert |
-| 7. Deduplication | Suppress repeated events and preserve representative evidence | Reduced alert fatigue |
-| 8. Case creation | Send a normalized payload to DFIR-IRIS | Triage-ready alert or case |
-| 9. Enrichment | Query MISP, VirusTotal, or AbuseIPDB only when relevant observables exist | IOC reputation and context |
-| 10. Investigation | Build timeline, process tree, impact assessment, and response decision | Documented incident verdict |
+| 1. Collection | Thu thập có chọn lọc Endpoint và Network Telemetry để kiểm soát Noise | Các Event có thể tìm kiếm trên Splunk |
+| 2. Normalization | Ánh xạ các Field khác nhau về Host, User, Process, Network, Rule và Severity thống nhất | Detection Schema ổn định |
+| 3. Context | Bổ sung Asset Role, Criticality, Owner, Zone và Allowlist Context khi có dữ liệu | Event có đủ ngữ cảnh cho Analyst |
+| 4. Detection | Áp dụng SPL, Sigma-aligned Logic, EDR Rules, Threshold và Behavioral Pattern | Candidate Security Events |
+| 5. Correlation | Nhóm Activity theo Host, Rule, Process Chain và Time Window | Một Activity Chain thay vì nhiều Micro-alert rời rạc |
+| 6. Risk Scoring | Kết hợp Source Severity, Rule Confidence, Asset Value và Behavior | Alert được ưu tiên theo rủi ro |
+| 7. Deduplication | Loại Alert lặp nhưng vẫn giữ Representative Evidence | Giảm Alert Fatigue |
+| 8. Case Creation | Gửi Normalized Payload sang DFIR-IRIS | Alert hoặc Case sẵn sàng cho Triage |
+| 9. Enrichment | Truy vấn MISP, VirusTotal hoặc AbuseIPDB khi có Observable phù hợp | IOC Reputation và Threat Context |
+| 10. Investigation | Xây dựng Timeline, Process Tree, Impact Assessment và Response Decision | Incident Verdict có bằng chứng |
 
-### Operational timing
+### Operational Timing
 
-The current design intentionally separates **telemetry latency** from **consolidated alert latency**:
+Thiết kế hiện tại chủ động tách **Telemetry Latency** khỏi **Consolidated Alert Latency**:
 
-| Measurement | Expected behavior |
+| Hạng mục đo lường | Hành vi dự kiến |
 |---|---|
-| Raw telemetry | Ingested near real time, subject to source and forwarder configuration |
-| Scheduled detection | Runs according to the saved-search schedule |
-| Correlation window | May wait several minutes to collect the complete activity chain |
-| DFIR-IRIS alert | Created after normalization, scoring, and deduplication complete |
+| Raw Telemetry | Được Ingest gần Real Time, tùy cấu hình Source và Forwarder |
+| Scheduled Detection | Chạy theo lịch của Splunk Saved Search |
+| Correlation Window | Có thể chờ vài phút để thu thập đầy đủ Activity Chain |
+| DFIR-IRIS Alert | Được tạo sau khi hoàn tất Normalization, Scoring và Deduplication |
 
-This means the project does not use an unsupported “everything responds in under 60 seconds” claim. A short delay can be an intentional engineering trade-off when it converts multiple low-context events into one higher-quality investigation unit.
+Vì vậy, dự án không sử dụng tuyên bố tuyệt đối kiểu “mọi phản hồi đều dưới 60 giây”. Một khoảng trễ ngắn có thể là **Engineering Trade-off** có chủ đích để chuyển nhiều Event ít ngữ cảnh thành một Investigation Unit có chất lượng cao hơn.
 
 ---
 
-## Telemetry and Data Sources
+## Telemetry và Data Sources
 
-| Source | Key events or data | Detection value |
+| Nguồn dữ liệu | Event hoặc dữ liệu chính | Giá trị phát hiện |
 |---|---|---|
-| Windows Security | Authentication, privilege use, account changes, scheduled tasks, service installation, log clearing | Identity activity, persistence, and privilege escalation |
-| Sysmon | Process creation, network connection, image load, process access, file, registry, DNS, process tampering | Process-chain and endpoint investigation |
-| PowerShell Operational | Event IDs `4103` and `4104` | Script content, suspicious commands, and encoded execution |
-| LimaCharlie EDR | Detections, process/network telemetry, sensor context | High-confidence endpoint behavior and cross-source validation |
-| pfSense | Filter actions, source/destination, ports, and interfaces | Scanning, blocked traffic, and perimeter activity |
-| Suricata | IDS/IPS signature alerts | Network threat detection and signature context |
-| Zeek | Connection and protocol metadata | Network forensics and behavioral context |
-| MISP | IOC attributes, tags, events, and related intelligence | Threat-context enrichment |
+| Windows Security | Authentication, Privilege Use, Account Changes, Scheduled Tasks, Service Installation và Log Clearing | Identity Activity, Persistence và Privilege Escalation |
+| Sysmon | Process Creation, Network Connection, Image Load, Process Access, File, Registry, DNS và Process Tampering | Process Chain và Endpoint Investigation |
+| PowerShell Operational | Event ID `4103` và `4104` | Script Content, Suspicious Command và Encoded Execution |
+| LimaCharlie EDR | Detection, Process/Network Telemetry và Sensor Context | High-confidence Endpoint Behavior và Cross-source Validation |
+| pfSense | Filter Action, Source/Destination, Port và Interface | Scanning, Blocked Traffic và Perimeter Activity |
+| Suricata | IDS/IPS Signature Alerts | Network Threat Detection và Signature Context |
+| Zeek | Connection và Protocol Metadata | Network Forensics và Behavioral Context |
+| MISP | IOC Attributes, Tags, Events và Related Intelligence | Threat-context Enrichment |
 
-Representative Splunk indexes used across the lab documentation include:
+Các Splunk Index tiêu biểu xuất hiện trong tài liệu của Lab:
 
 ```text
 win10eventlog   win10sysmon   win10powershell
@@ -190,24 +190,24 @@ edr             pfsense       suricata         zeek
 
 ---
 
-## Detection Engineering
+## Kỹ thuật phát hiện (Detection Engineering)
 
-### Detection principles
+### Nguyên tắc xây dựng Detection
 
-- Prefer behavior and process-chain context over a single filename match.
-- Keep raw evidence available for analyst verification.
-- Separate detection confidence from business impact.
-- Treat authorized simulations as **True Positive — Authorized Simulation**, not as false positives.
-- Use allowlists narrowly and document why an exception exists.
-- Map detections to ATT&CK only when the available telemetry supports the mapping.
-- Correlate events before creating cases when a single test produces many related alerts.
-- Require human approval for disruptive response actions.
+- Ưu tiên Behavior và Process Chain thay vì chỉ Match một Filename.
+- Luôn giữ Raw Evidence để Analyst có thể xác minh.
+- Tách Detection Confidence khỏi Business Impact.
+- Phân loại mô phỏng được cấp phép là **True Positive — Authorized Simulation**, không coi là False Positive.
+- Sử dụng Allowlist có phạm vi hẹp và ghi rõ lý do của từng Exception.
+- Chỉ MITRE ATT&CK Mapping khi Telemetry hiện có đủ bằng chứng hỗ trợ.
+- Correlate Event trước khi tạo Case nếu một bài Test sinh ra nhiều Alert liên quan.
+- Yêu cầu Human Approval trước các Response Action có khả năng gây gián đoạn.
 
-### Example: UC-001 PowerShell EncodedCommand
+### Ví dụ: UC-001 PowerShell EncodedCommand
 
-The repository includes a Sigma rule that detects PowerShell or PowerShell Core using full or shortened `EncodedCommand` switches.
+Repository có Sigma Rule phát hiện PowerShell hoặc PowerShell Core sử dụng tham số đầy đủ hoặc dạng rút gọn của `EncodedCommand`.
 
-[View the Sigma rule](MITRE-ATTACK-Practice/Ransomware-Simulation/Sigma_Rule/T1059.001.yaml)
+[Xem Sigma Rule](MITRE-ATTACK-Practice/Ransomware-Simulation/Sigma_Rule/T1059.001.yaml)
 
 ```yaml
 title: UC-001 PowerShell EncodedCommand
@@ -226,146 +226,146 @@ detection:
 level: medium
 ```
 
-The rule includes legitimate automation, deployment tooling, and authorized security validation in its false-positive considerations. This is important because an encoded command is suspicious context, not automatic proof of compromise.
+Rule có xét đến Legitimate Automation, Deployment Tools và Authorized Security Validation trong phần False-positive Considerations. Điều này quan trọng vì Encoded Command là **Suspicious Context**, chưa tự động chứng minh Endpoint đã bị Compromise.
 
-### Alert-quality engineering
+### Cải thiện chất lượng Alert
 
-The current project evolution focuses on improving the analyst experience:
+Giai đoạn phát triển hiện tại tập trung cải thiện Analyst Experience:
 
-- normalize fields from Splunk, Sysmon, and LimaCharlie into one alert schema;
-- enrich alerts with asset metadata from a controlled lookup;
-- calculate risk from detection severity, confidence, and asset context;
-- group related detections within a defined time window;
-- avoid creating six to eight separate IRIS alerts for one Atomic Red Team activity chain;
-- preserve the representative raw event and correlation metadata;
-- generate a consistent DFIR-IRIS payload for repeatable triage.
+- chuẩn hóa Field từ Splunk, Sysmon và LimaCharlie về một Alert Schema;
+- bổ sung Asset Metadata từ Lookup có kiểm soát;
+- tính Risk Score từ Detection Severity, Confidence và Asset Context;
+- nhóm các Detection liên quan trong một Time Window xác định;
+- tránh tạo sáu đến tám IRIS Alert riêng cho cùng một Atomic Red Team Activity Chain;
+- giữ lại Representative Raw Event và Correlation Metadata;
+- tạo Payload nhất quán cho DFIR-IRIS để Triage có thể lặp lại.
 
 ---
 
-## Validated Attack Scenarios
+## Các kịch bản tấn công đã kiểm thử
 
-All listed activity was executed in an isolated, authorized lab for defensive validation.
+Toàn bộ hoạt động dưới đây được thực hiện trong phòng lab cô lập, có cấp phép và chỉ phục vụ Defensive Validation.
 
-| Phase | Scenario | ATT&CK mapping | Primary evidence | Outcome |
+| Giai đoạn | Kịch bản | ATT&CK Mapping | Bằng chứng chính | Kết quả |
 |---|---|---|---|---|
-| Execution | PowerShell download cradle and credential-dumping simulation | [T1059.001](https://attack.mitre.org/techniques/T1059/001/), T1105, T1003 | Sysmon process/DNS/network events, LimaCharlie detections, Splunk timeline | True Positive — Authorized Simulation |
-| Execution | PowerShell `-e` / EncodedCommand | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | Sysmon Event ID 1, EDR cross-check, IRIS alert | True Positive — Authorized Simulation |
-| Execution | Command shell writes and executes VBScript | [T1059.003](https://attack.mitre.org/techniques/T1059/003/), T1059.005, T1033 | `cmd.exe → wscript.exe → whoami.exe` chain | True Positive — Authorized Simulation |
-| Privilege Escalation | Event Viewer UAC bypass simulation | [T1548.002](https://attack.mitre.org/techniques/T1548/002/) | Registry modification, PowerShell, Event Viewer/MMC, child process evidence | True Positive — Authorized Simulation |
-| Defense Evasion | Microsoft Defender tampering attempt | [T1562.001](https://attack.mitre.org/techniques/T1562/001/) | `Set-MpPreference`, Sysmon, LimaCharlie, Splunk, IRIS | Attempt detected; requested changes were blocked |
-| Discovery | Host, user, process, and file-system discovery | T1082, T1033, T1057, T1083 | `hostname.exe`, `whoami.exe`, process and file events | Correlated as supporting context |
-| Network | Repeated blocked traffic / scanning | T1595.001 | pfSense, Suricata, source-IP aggregation | Detection and enrichment workflow validated |
-| Endpoint | LOLBin execution | T1218, T1105 where supported | Process creation, command line, hash, network context | Detection and enrichment workflow validated |
+| Execution | PowerShell Download Cradle và Credential-dumping Simulation | [T1059.001](https://attack.mitre.org/techniques/T1059/001/), T1105, T1003 | Sysmon Process/DNS/Network Events, LimaCharlie Detections và Splunk Timeline | True Positive — Authorized Simulation |
+| Execution | PowerShell `-e` / EncodedCommand | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | Sysmon Event ID 1, EDR Cross-check và IRIS Alert | True Positive — Authorized Simulation |
+| Execution | Command Shell ghi và thực thi VBScript | [T1059.003](https://attack.mitre.org/techniques/T1059/003/), T1059.005, T1033 | Process Chain `cmd.exe → wscript.exe → whoami.exe` | True Positive — Authorized Simulation |
+| Privilege Escalation | Event Viewer UAC Bypass Simulation | [T1548.002](https://attack.mitre.org/techniques/T1548/002/) | Registry Modification, PowerShell, Event Viewer/MMC và Child Process | True Positive — Authorized Simulation |
+| Defense Evasion | Microsoft Defender Tampering Attempt | [T1562.001](https://attack.mitre.org/techniques/T1562/001/) | `Set-MpPreference`, Sysmon, LimaCharlie, Splunk và IRIS | Attempt Detected; thay đổi bị hệ thống chặn |
+| Discovery | Host, User, Process và File-system Discovery | T1082, T1033, T1057, T1083 | `hostname.exe`, `whoami.exe`, Process và File Events | Được Correlate làm Supporting Context |
+| Network | Repeated Blocked Traffic / Scanning | T1595.001 | pfSense, Suricata và Source-IP Aggregation | Detection và Enrichment Workflow đã được kiểm thử |
+| Endpoint | LOLBin Execution | T1218, T1105 khi đủ bằng chứng | Process Creation, Command Line, Hash và Network Context | Detection và Enrichment Workflow đã được kiểm thử |
 
 > [!NOTE]
-> The existing Defender-tampering report filename contains the historical lab label `T1685-19`. The behavior is presented here under the current ATT&CK concept **Impair Defenses: Disable or Modify Tools (T1562.001)** while retaining the original report filename for repository compatibility.
+> Tên file báo cáo Defender Tampering hiện giữ nhãn Lab cũ `T1685-19`. Trong README này, hành vi được trình bày theo ATT&CK hiện hành là **Impair Defenses: Disable or Modify Tools (T1562.001)**, đồng thời giữ nguyên Filename để bảo đảm Repository Compatibility.
 
-### Investigation reports
+### Investigation Reports
 
-- [PowerShell credential-dumping simulation](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.001-PowerShell.md)
+- [Mô phỏng PowerShell Credential Dumping](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.001-PowerShell.md)
 - [PowerShell EncodedCommand — Atomic Test #17](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.001-17PowerShell_Command_Execution.md)
 - [Windows Command Shell — Atomic Test #6](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.003-Windows-Command-Shell-Test6.md)
-- [Bypass UAC using Event Viewer](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-2-privilege-escalation/T1548.002-2_Bypass_UAC_using_Event_Viewer_%28PowerShell%29.md)
-- [Microsoft Defender tampering attempt](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-3-defense-evasion/T1685-19_Tamper_with_Windows_Defender_ATP_PowerShell.md)
-- [MITRE ATT&CK practice index](MITRE-ATTACK-Practice/README.md)
+- [Bypass UAC bằng Event Viewer](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-2-privilege-escalation/T1548.002-2_Bypass_UAC_using_Event_Viewer_%28PowerShell%29.md)
+- [Microsoft Defender Tampering Attempt](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-3-defense-evasion/T1685-19_Tamper_with_Windows_Defender_ATP_PowerShell.md)
+- [MITRE ATT&CK Practice Index](MITRE-ATTACK-Practice/README.md)
 
 ---
 
-## Incident Response Workflow
+## Quy trình ứng phó sự cố (Incident Response Workflow)
 
 ```mermaid
 flowchart TD
-    A["Alert received"] --> B["Validate source, time, host, user, and rule"]
-    B --> C["Correlate Splunk, Sysmon, EDR, and network evidence"]
-    C --> D{"Authorized activity?"}
-    D -- "Yes" --> E["Classify: True Positive — Authorized Simulation"]
-    D -- "No / Unknown" --> F["Assess severity, scope, and business impact"]
-    E --> G["Document evidence and lessons learned"]
-    F --> H["Enrich relevant IOCs in MISP / VirusTotal"]
-    H --> I["Containment decision with analyst approval"]
+    A["Tiếp nhận Alert"] --> B["Xác minh Source, Time, Host, User và Rule"]
+    B --> C["Correlate Splunk, Sysmon, EDR và Network Evidence"]
+    C --> D{"Hoạt động đã được cấp phép?"}
+    D -- "Có" --> E["Phân loại: True Positive — Authorized Simulation"]
+    D -- "Không / Chưa rõ" --> F["Đánh giá Severity, Scope và Business Impact"]
+    E --> G["Ghi lại Evidence và Lessons Learned"]
+    F --> H["Enrich IOC liên quan bằng MISP / VirusTotal"]
+    H --> I["Containment Decision có Analyst Approval"]
     I --> G
-    G --> J["Complete tasks, timeline, notes, verdict, and closure in DFIR-IRIS"]
+    G --> J["Hoàn thành Tasks, Timeline, Notes, Verdict và Closure trên DFIR-IRIS"]
 ```
 
-### Analyst checklist
+### Analyst Checklist
 
-1. Confirm the detection source, rule, host, user, and time window.
-2. Review the raw event before trusting the alert summary.
-3. Reconstruct the parent-child process chain.
-4. Correlate EDR telemetry with Sysmon, PowerShell, and network data.
-5. Identify files, hashes, domains, IP addresses, registry keys, and commands.
-6. Enrich only observables relevant to the case.
-7. Separate attempted behavior from successful impact.
-8. Assign a verdict, confidence, severity, and response decision.
-9. Record screenshots, SPL queries, timeline entries, IOCs, and analyst notes.
-10. Close the case only after the evidence supports the final classification.
+1. Xác nhận Detection Source, Rule, Host, User và Time Window.
+2. Kiểm tra Raw Event trước khi tin hoàn toàn vào Alert Summary.
+3. Tái dựng Parent-child Process Chain.
+4. Correlate EDR Telemetry với Sysmon, PowerShell và Network Data.
+5. Xác định File, Hash, Domain, IP Address, Registry Key và Command liên quan.
+6. Chỉ Enrich những Observable có giá trị đối với Case.
+7. Phân biệt rõ Attempted Behavior và Successful Impact.
+8. Gán Verdict, Confidence, Severity và Response Decision.
+9. Lưu Screenshots, SPL Queries, Timeline Entries, IOCs và Analyst Notes.
+10. Chỉ đóng Case khi Evidence hỗ trợ đầy đủ Final Classification.
 
-### Standard case outcome fields
+### Các trường chuẩn trong Case Outcome
 
-| Field | Example values |
+| Trường | Giá trị ví dụ |
 |---|---|
 | Classification | True Positive, Benign Positive, False Positive |
 | Context | Authorized Simulation, Administrative Activity, Unknown |
 | Confidence | Low, Medium, High |
 | Severity | Informational, Low, Medium, High, Critical |
 | Impact | None, Attempted, Confirmed |
-| Containment | Not required, Recommended, Required |
-| Escalation | Not required, Tier 2, Incident Response |
-| Final status | Open, Monitoring, Closed after validation |
+| Containment | Not Required, Recommended, Required |
+| Escalation | Not Required, Tier 2, Incident Response |
+| Final Status | Open, Monitoring, Closed after Validation |
 
 ---
 
-## Automation Paths
+## Các luồng tự động hóa (Automation Paths)
 
-### Current IRIS-centered path
+### Luồng chính tập trung vào DFIR-IRIS
 
 ```text
 Telemetry
-  → Splunk detection/correlation
-  → normalization + asset context + risk scoring
-  → deduplication
-  → DFIR-IRIS alert
-  → analyst triage / merge / case tasks / timeline
-  → MISP or VirusTotal enrichment when applicable
-  → verdict and closure
+  → Splunk Detection / Correlation
+  → Normalization + Asset Context + Risk Scoring
+  → Deduplication
+  → DFIR-IRIS Alert
+  → Analyst Triage / Merge / Case Tasks / Timeline
+  → MISP hoặc VirusTotal Enrichment khi phù hợp
+  → Verdict và Closure
 ```
 
-### n8n enrichment and notification path
+### Luồng n8n Enrichment và Notification
 
 ```text
-Splunk alert
-  → n8n webhook
-  → route by alert type
-  → AbuseIPDB / VirusTotal enrichment
-  → optional AI-assisted summary using sanitized lab data
-  → Telegram notification
+Splunk Alert
+  → n8n Webhook
+  → Route theo Alert Type
+  → AbuseIPDB / VirusTotal Enrichment
+  → AI-assisted Summary với Lab Data đã được kiểm soát
+  → Telegram Notification
 ```
 
-The n8n path demonstrates orchestration and analyst-assistance concepts. AI output is treated as supporting context, not as the authoritative verdict, and no destructive containment action is executed without human approval.
+Luồng n8n thể hiện khả năng Orchestration và Analyst Assistance. AI Output chỉ được coi là Supporting Context, không thay thế Analyst Verdict; hệ thống cũng không thực hiện Destructive Containment nếu chưa có Human Approval.
 
 ---
 
-## Technology Stack
+## Công nghệ sử dụng (Technology Stack)
 
-| Layer | Technologies |
+| Lớp | Công nghệ |
 |---|---|
 | Virtualization | VMware Workstation |
-| Network security | pfSense, Suricata, syslog-ng |
-| Network monitoring | Zeek |
+| Network Security | pfSense, Suricata, syslog-ng |
+| Network Monitoring | Zeek |
 | SIEM | Splunk Enterprise, Splunk Universal Forwarder |
-| Endpoint telemetry | Windows Event Logs, Sysmon, PowerShell Script Block Logging |
+| Endpoint Telemetry | Windows Event Logs, Sysmon, PowerShell Script Block Logging |
 | EDR | LimaCharlie |
-| Detection content | SPL, Sigma, custom EDR rules, MITRE ATT&CK |
-| SOAR / automation | n8n, webhooks, REST APIs, controlled scripting |
-| Case management | DFIR-IRIS |
-| Threat intelligence | MISP, VirusTotal, AbuseIPDB |
+| Detection Content | SPL, Sigma, Custom EDR Rules, MITRE ATT&CK |
+| SOAR / Automation | n8n, Webhooks, REST APIs, Controlled Scripting |
+| Case Management | DFIR-IRIS |
+| Threat Intelligence | MISP, VirusTotal, AbuseIPDB |
 | Validation | Atomic Red Team, Kali Linux |
-| Notification / assistance | Telegram Bot, optional Google Gemini lab workflow |
+| Notification / Assistance | Telegram Bot, Optional Google Gemini Lab Workflow |
 | Infrastructure | Ubuntu Server, Windows 10, Windows Server 2012 R2, Cloudflare Tunnel |
 
 ---
 
-## Repository Map
+## Cấu trúc Repository
 
 ```text
 SOAR_HomeLab/
@@ -382,90 +382,90 @@ SOAR_HomeLab/
         └── phase-3-defense-evasion/
 ```
 
-- [Detailed SuperSOAR build report](SuperSOAR_homelab/SuperSOAR_HomeLab.md)
-- [MITRE ATT&CK validation workspace](MITRE-ATTACK-Practice/README.md)
-- [PowerShell Sigma detection](MITRE-ATTACK-Practice/Ransomware-Simulation/Sigma_Rule/T1059.001.yaml)
+- [Báo cáo triển khai SuperSOAR chi tiết](SuperSOAR_homelab/SuperSOAR_HomeLab.md)
+- [MITRE ATT&CK Validation Workspace](MITRE-ATTACK-Practice/README.md)
+- [PowerShell Sigma Detection](MITRE-ATTACK-Practice/Ransomware-Simulation/Sigma_Rule/T1059.001.yaml)
 
 ---
 
-## Engineering Decisions and Lessons Learned
+## Quyết định kỹ thuật và bài học kinh nghiệm
 
-### 1. One activity chain should not become eight disconnected alerts
+### 1. Một Activity Chain không nên tạo thành tám Alert rời rạc
 
-Atomic tests often create short bursts of related detections. Grouping by endpoint, rule family, process chain, and time window gives the analyst a more useful unit of investigation.
+Atomic Test thường tạo một chuỗi Detection ngắn trong cùng Time Window. Grouping theo Endpoint, Rule Family, Process Chain và Time Window giúp Analyst nhận được một Investigation Unit có ý nghĩa hơn.
 
-### 2. Fast is not always the same as useful
+### 2. Nhanh nhất chưa chắc hữu ích nhất
 
-Raw telemetry should arrive quickly, but a consolidated alert may intentionally wait for a correlation window. The project measures ingestion and alert creation separately.
+Raw Telemetry cần được Ingest nhanh, nhưng Consolidated Alert có thể chủ động chờ Correlation Window. Dự án đo Telemetry Ingestion và Alert Creation thành hai chỉ số riêng.
 
-### 3. Detection is not proof of impact
+### 3. Detection không đồng nghĩa với Impact đã xảy ra
 
-The Defender-tampering test produced valid security detections, but Windows rejected the requested configuration changes. The correct conclusion is **attempt detected and blocked**, not “Defender was disabled.”
+Defender Tampering Test tạo Detection hợp lệ, nhưng Windows đã từ chối các thay đổi cấu hình. Kết luận chính xác phải là **Attempt Detected and Blocked**, không phải “Defender đã bị vô hiệu hóa”.
 
-### 4. Threat intelligence is contextual
+### 4. Threat Intelligence chỉ là Context
 
-An IP reputation score or hash verdict supports an investigation; it does not replace process, user, host, network, and timeline analysis.
+IP Reputation Score hoặc Hash Verdict hỗ trợ Investigation nhưng không thể thay thế Process, User, Host, Network và Timeline Analysis.
 
-### 5. Segmentation must be implemented, not only drawn
+### 5. Network Segmentation phải được triển khai, không chỉ xuất hiện trên sơ đồ
 
-Moving the victim endpoint to VMnet4 is tracked as a hardening milestone. The documentation will be promoted from “target” to “implemented” only after interface configuration, routing, firewall rules, telemetry flow, and attack-path tests are verified.
+Việc chuyển Victim Endpoint sang VMnet4 được theo dõi như một Hardening Milestone. Tài liệu chỉ chuyển trạng thái từ “Target” sang “Implemented” sau khi Interface Configuration, Routing, Firewall Rules, Telemetry Flow và Attack-path Tests đều được xác minh.
 
 ---
 
-## Engineering Roadmap
+## Lộ trình phát triển (Engineering Roadmap)
 
-| Status | Milestone |
+| Trạng thái | Milestone |
 |---|---|
-| ✅ Implemented | Splunk SIEM with endpoint and network telemetry |
-| ✅ Implemented | Sysmon, PowerShell logging, and LimaCharlie EDR visibility |
-| ✅ Implemented | pfSense, Suricata, and Zeek monitoring |
-| ✅ Implemented | n8n enrichment and notification workflow |
-| ✅ Implemented | DFIR-IRIS case-management workflow |
-| ✅ Implemented | MISP / VirusTotal / AbuseIPDB enrichment paths |
-| ✅ Implemented | Atomic Red Team investigation reports and ATT&CK mapping |
-| ✅ Implemented | Sigma rule for PowerShell EncodedCommand |
-| 🔧 In progress | Higher-quality alert normalization, risk scoring, correlation, and deduplication |
-| 🔧 In progress | Expanded Suricata blocked-scanner correlation and noise reduction |
-| 🧭 Planned | Move Windows 10 victim to VMnet4 `172.16.10.0/24` |
-| 🧭 Planned | Validate default-deny inter-zone firewall policy |
-| 🧭 Planned | Enforce verified TLS for every internal API integration |
-| 🧭 Planned | Centralize secrets and remove credentials from workflow definitions |
-| 🧭 Planned | Add approval-gated containment playbooks |
-| 🧭 Planned | Add detection-as-code testing and CI validation |
-| 🧭 Planned | Expand ATT&CK coverage across persistence, credential access, discovery, lateral movement, and impact |
+| ✅ Đã triển khai | Splunk SIEM tiếp nhận Endpoint và Network Telemetry |
+| ✅ Đã triển khai | Sysmon, PowerShell Logging và LimaCharlie EDR Visibility |
+| ✅ Đã triển khai | pfSense, Suricata và Zeek Monitoring |
+| ✅ Đã triển khai | n8n Enrichment và Notification Workflow |
+| ✅ Đã triển khai | DFIR-IRIS Case-management Workflow |
+| ✅ Đã triển khai | MISP / VirusTotal / AbuseIPDB Enrichment Paths |
+| ✅ Đã triển khai | Atomic Red Team Investigation Reports và ATT&CK Mapping |
+| ✅ Đã triển khai | Sigma Rule cho PowerShell EncodedCommand |
+| 🔧 Đang hoàn thiện | Alert Normalization, Risk Scoring, Correlation và Deduplication |
+| 🔧 Đang hoàn thiện | Suricata Blocked-scanner Correlation và Noise Reduction |
+| 🧭 Dự kiến | Chuyển Windows 10 Victim sang VMnet4 `172.16.10.0/24` |
+| 🧭 Dự kiến | Xác minh Default-deny Inter-zone Firewall Policy |
+| 🧭 Dự kiến | Enforce Verified TLS cho toàn bộ Internal API Integration |
+| 🧭 Dự kiến | Centralize Secrets và loại Credential khỏi Workflow Definition |
+| 🧭 Dự kiến | Thêm Approval-gated Containment Playbooks |
+| 🧭 Dự kiến | Thêm Detection-as-code Testing và CI Validation |
+| 🧭 Dự kiến | Mở rộng ATT&CK Coverage cho Persistence, Credential Access, Discovery, Lateral Movement và Impact |
 
 ---
 
-## Security and Responsible Use
+## An toàn và sử dụng có trách nhiệm
 
-- All attack simulations are executed only in an isolated, authorized home-lab environment.
-- No production credentials, customer information, or confidential organizational telemetry is included.
-- API tokens, webhook secrets, tunnel credentials, and passwords must never be committed.
-- AI-assisted analysis receives only controlled or sanitized lab data.
-- Automated containment remains human-approved to reduce the risk of unsafe actions.
-- Windows Server 2012 R2 is used only as a deliberately legacy lab workload and must not be exposed as a production service.
-- The project is intended for defensive education, detection validation, and incident-response practice.
+- Toàn bộ Attack Simulation chỉ được thực hiện trong HomeLab cô lập và có cấp phép.
+- Repository không chứa Production Credential, Customer Information hoặc Confidential Organizational Telemetry.
+- API Token, Webhook Secret, Tunnel Credential và Password không được Commit.
+- AI-assisted Analysis chỉ tiếp nhận Controlled hoặc Sanitized Lab Data.
+- Automated Containment luôn yêu cầu Human Approval để giảm nguy cơ hành động sai.
+- Windows Server 2012 R2 chỉ đóng vai trò Deliberately Legacy Lab Workload và không được sử dụng như Production Service.
+- Dự án phục vụ Defensive Education, Detection Validation và Incident Response Practice.
 
 ---
 
-## Author
+## Tác giả (Author)
 
 <div align="center">
 
 ### Nguyen Thanh Long
 
-**Information Assurance Student · SOC Analyst Intern Candidate · Blue Team HomeLab Builder**
+**Sinh viên An toàn thông tin · Ứng viên SOC Analyst Intern · Blue Team HomeLab Builder**
 
 [![GitHub](https://img.shields.io/badge/GitHub-longnt05--afk-0b0f14?style=for-the-badge&logo=github&logoColor=00ff88)](https://github.com/longnt05-afk)
-<img src="https://img.shields.io/badge/Hanoi-Vietnam-0b0f14?style=for-the-badge&logo=googlemaps&logoColor=00ff88" alt="Hanoi, Vietnam"/>
+<img src="https://img.shields.io/badge/Hanoi-Vietnam-0b0f14?style=for-the-badge&logo=googlemaps&logoColor=00ff88" alt="Hà Nội, Việt Nam"/>
 
 <br/>
 
-<em>Built to turn raw security telemetry into defensible detections, reproducible investigations, and documented response decisions.</em>
+<em>Xây dựng để biến Raw Security Telemetry thành Detection có cơ sở, Investigation có thể tái lập và Response Decision có bằng chứng.</em>
 
 <br/><br/>
 
-**If this lab helps your SOC learning journey, consider giving the repository a star.**
+**Nếu dự án hữu ích cho hành trình học SOC của bạn, hãy cân nhắc dành cho Repository một Star.**
 
 </div>
 
