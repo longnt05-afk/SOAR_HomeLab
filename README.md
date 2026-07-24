@@ -337,29 +337,6 @@ Luồng n8n thể hiện khả năng Orchestration và Analyst Assistance. AI Ou
 | Notification / Assistance | Telegram Bot, Optional Google Gemini Lab Workflow |
 | Infrastructure | Ubuntu Server, Windows 10, Windows Server 2012 R2, Cloudflare Tunnel |
 
----
-
-## Quyết định kỹ thuật và bài học kinh nghiệm
-
-### 1. Một Activity Chain không nên tạo thành tám Alert rời rạc
-
-Atomic Test thường tạo một chuỗi Detection ngắn trong cùng Time Window. Grouping theo Endpoint, Rule Family, Process Chain và Time Window giúp Analyst nhận được một Investigation Unit có ý nghĩa hơn.
-
-### 2. Nhanh nhất chưa chắc hữu ích nhất
-
-Raw Telemetry cần được Ingest nhanh, nhưng Consolidated Alert có thể chủ động chờ Correlation Window. Dự án đo Telemetry Ingestion và Alert Creation thành hai chỉ số riêng.
-
-### 3. Detection không đồng nghĩa với Impact đã xảy ra
-
-Defender Tampering Test tạo Detection hợp lệ, nhưng Windows đã từ chối các thay đổi cấu hình. Kết luận chính xác phải là **Attempt Detected and Blocked**, không phải “Defender đã bị vô hiệu hóa”.
-
-### 4. Threat Intelligence chỉ là Context
-
-IP Reputation Score hoặc Hash Verdict hỗ trợ Investigation nhưng không thể thay thế Process, User, Host, Network và Timeline Analysis.
-
-### 5. Network Segmentation phải được triển khai, không chỉ xuất hiện trên sơ đồ
-
-Việc chuyển Victim Endpoint sang VMnet4 được theo dõi như một Hardening Milestone. Tài liệu chỉ chuyển trạng thái từ “Target” sang “Implemented” sau khi Interface Configuration, Routing, Firewall Rules, Telemetry Flow và Attack-path Tests đều được xác minh.
 
 ---
 
