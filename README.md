@@ -46,7 +46,7 @@
 4. chuẩn hóa dữ liệu, bổ sung Asset Context, tính Risk Score, Correlation và Deduplication;
 5. làm giàu IOC bằng các nguồn Threat Intelligence;
 6. tạo Alert, quản lý Case và theo dõi Investigation trên DFIR-IRIS;
-7. kiểm thử khả năng phát hiện bằng Atomic Red Team và các mô phỏng có kiểm soát từ Kali Linux;
+7. kiểm thử khả năng phát hiện bằng Atomic Red Team và các mô phỏng có kiểm soát từ Kali Linux và các Malware Sample tự nghiên cứu ;
 8. tài liệu hóa Timeline, Evidence, Verdict, Response Decision và Lessons Learned.
 
 Dự án không được giới thiệu như một Production SOC hoặc nền tảng tự động phản ứng hoàn toàn. Đây là một **Controlled HomeLab** nhằm chứng minh năng lực thực hành SOC Analysis, Detection Engineering, Security Automation, Threat Validation và Incident Documentation.
@@ -72,12 +72,11 @@ Dự án không được giới thiệu như một Production SOC hoặc nền t
 
 ### Trạng thái phân vùng mạng
 
-Repository phân biệt rõ **Current Lab Deployment** và **Target Segmented Architecture**. Cách trình bày này vẫn thể hiện tư duy thiết kế mạng chuyên nghiệp nhưng không biến một biện pháp bảo mật chưa triển khai thành thông tin sai.
 
 | Hạng mục | Mô hình đang triển khai | Thiết kế Hardening mục tiêu |
 |---|---|---|
-| SOC Services | VMnet2 — `172.16.1.0/24` | VMnet2 — `172.16.1.0/24` |
-| Windows 10 Victim | `172.16.1.10`, đang dùng chung VMnet2 | VMnet4 — `172.16.10.10`, tách thành Endpoint/LAN riêng |
+| SOC Services | VMnet2 - `172.16.1.0/24` | VMnet2 - `172.16.1.0/24` |
+| Windows 10 Victim | `172.16.1.10`, đang dùng chung VMnet2 | VMnet4 - `172.16.10.10`, tách thành Endpoint/LAN riêng |
 | LAN Gateway | Dùng chung pfSense Interface `172.16.1.1` | Dedicated pfSense VMnet4 Interface `172.16.10.1` |
 | Isolation Model | Giới hạn tài nguyên HomeLab nên các máy dùng chung Internal Virtual Segment | Inter-zone Filtering, Least Privilege và Default-deny giữa LAN, SOC, DMZ và WAN |
 | Sơ đồ bên dưới | Thể hiện Target Architecture | Planned Segmentation / Hardening Milestone |
@@ -164,7 +163,6 @@ Thiết kế hiện tại chủ động tách **Telemetry Latency** khỏi **Con
 | Correlation Window | Có thể chờ vài phút để thu thập đầy đủ Activity Chain |
 | DFIR-IRIS Alert | Được tạo sau khi hoàn tất Normalization, Scoring và Deduplication |
 
-Vì vậy, dự án không sử dụng tuyên bố tuyệt đối kiểu “mọi phản hồi đều dưới 60 giây”. Một khoảng trễ ngắn có thể là **Engineering Trade-off** có chủ đích để chuyển nhiều Event ít ngữ cảnh thành một Investigation Unit có chất lượng cao hơn.
 
 ---
 
@@ -197,36 +195,12 @@ edr             pfsense       suricata         zeek
 - Ưu tiên Behavior và Process Chain thay vì chỉ Match một Filename.
 - Luôn giữ Raw Evidence để Analyst có thể xác minh.
 - Tách Detection Confidence khỏi Business Impact.
-- Phân loại mô phỏng được cấp phép là **True Positive — Authorized Simulation**, không coi là False Positive.
+- Phân loại mô phỏng được cấp phép là **True Positive - Authorized Simulation**, không coi là False Positive.
 - Sử dụng Allowlist có phạm vi hẹp và ghi rõ lý do của từng Exception.
 - Chỉ MITRE ATT&CK Mapping khi Telemetry hiện có đủ bằng chứng hỗ trợ.
 - Correlate Event trước khi tạo Case nếu một bài Test sinh ra nhiều Alert liên quan.
 - Yêu cầu Human Approval trước các Response Action có khả năng gây gián đoạn.
 
-### Ví dụ: UC-001 PowerShell EncodedCommand
-
-Repository có Sigma Rule phát hiện PowerShell hoặc PowerShell Core sử dụng tham số đầy đủ hoặc dạng rút gọn của `EncodedCommand`.
-
-[Xem Sigma Rule](MITRE-ATTACK-Practice/Ransomware-Simulation/Sigma_Rule/T1059.001.yaml)
-
-```yaml
-title: UC-001 PowerShell EncodedCommand
-status: test
-logsource:
-  product: windows
-  category: process_creation
-detection:
-  selection_image:
-    Image|endswith:
-      - '\powershell.exe'
-      - '\pwsh.exe'
-  selection_encoded_switch:
-    CommandLine|re: '(?i)(^|\s)-(e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)(\s+|:|=)'
-  condition: selection_image and selection_encoded_switch
-level: medium
-```
-
-Rule có xét đến Legitimate Automation, Deployment Tools và Authorized Security Validation trong phần False-positive Considerations. Điều này quan trọng vì Encoded Command là **Suspicious Context**, chưa tự động chứng minh Endpoint đã bị Compromise.
 
 ### Cải thiện chất lượng Alert
 
@@ -248,10 +222,10 @@ Toàn bộ hoạt động dưới đây được thực hiện trong phòng lab 
 
 | Giai đoạn | Kịch bản | ATT&CK Mapping | Bằng chứng chính | Kết quả |
 |---|---|---|---|---|
-| Execution | PowerShell Download Cradle và Credential-dumping Simulation | [T1059.001](https://attack.mitre.org/techniques/T1059/001/), T1105, T1003 | Sysmon Process/DNS/Network Events, LimaCharlie Detections và Splunk Timeline | True Positive — Authorized Simulation |
-| Execution | PowerShell `-e` / EncodedCommand | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | Sysmon Event ID 1, EDR Cross-check và IRIS Alert | True Positive — Authorized Simulation |
-| Execution | Command Shell ghi và thực thi VBScript | [T1059.003](https://attack.mitre.org/techniques/T1059/003/), T1059.005, T1033 | Process Chain `cmd.exe → wscript.exe → whoami.exe` | True Positive — Authorized Simulation |
-| Privilege Escalation | Event Viewer UAC Bypass Simulation | [T1548.002](https://attack.mitre.org/techniques/T1548/002/) | Registry Modification, PowerShell, Event Viewer/MMC và Child Process | True Positive — Authorized Simulation |
+| Execution | PowerShell Download Cradle và Credential-dumping Simulation | [T1059.001](https://attack.mitre.org/techniques/T1059/001/), T1105, T1003 | Sysmon Process/DNS/Network Events, LimaCharlie Detections và Splunk Timeline | True Positive - Authorized Simulation |
+| Execution | PowerShell `-e` / EncodedCommand | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | Sysmon Event ID 1, EDR Cross-check và IRIS Alert | True Positive - Authorized Simulation |
+| Execution | Command Shell ghi và thực thi VBScript | [T1059.003](https://attack.mitre.org/techniques/T1059/003/), T1059.005, T1033 | Process Chain `cmd.exe → wscript.exe → whoami.exe` | True Positive - Authorized Simulation |
+| Privilege Escalation | Event Viewer UAC Bypass Simulation | [T1548.002](https://attack.mitre.org/techniques/T1548/002/) | Registry Modification, PowerShell, Event Viewer/MMC và Child Process | True Positive - Authorized Simulation |
 | Defense Evasion | Microsoft Defender Tampering Attempt | [T1562.001](https://attack.mitre.org/techniques/T1562/001/) | `Set-MpPreference`, Sysmon, LimaCharlie, Splunk và IRIS | Attempt Detected; thay đổi bị hệ thống chặn |
 | Discovery | Host, User, Process và File-system Discovery | T1082, T1033, T1057, T1083 | `hostname.exe`, `whoami.exe`, Process và File Events | Được Correlate làm Supporting Context |
 | Network | Repeated Blocked Traffic / Scanning | T1595.001 | pfSense, Suricata và Source-IP Aggregation | Detection và Enrichment Workflow đã được kiểm thử |
@@ -263,8 +237,8 @@ Toàn bộ hoạt động dưới đây được thực hiện trong phòng lab 
 ### Investigation Reports
 
 - [Mô phỏng PowerShell Credential Dumping](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.001-PowerShell.md)
-- [PowerShell EncodedCommand — Atomic Test #17](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.001-17PowerShell_Command_Execution.md)
-- [Windows Command Shell — Atomic Test #6](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.003-Windows-Command-Shell-Test6.md)
+- [PowerShell EncodedCommand - Atomic Test #17](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.001-17PowerShell_Command_Execution.md)
+- [Windows Command Shell - Atomic Test #6](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-1-execution/T1059.003-Windows-Command-Shell-Test6.md)
 - [Bypass UAC bằng Event Viewer](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-2-privilege-escalation/T1548.002-2_Bypass_UAC_using_Event_Viewer_%28PowerShell%29.md)
 - [Microsoft Defender Tampering Attempt](MITRE-ATTACK-Practice/Ransomware-Simulation/phase-3-defense-evasion/T1685-19_Tamper_with_Windows_Defender_ATP_PowerShell.md)
 - [MITRE ATT&CK Practice Index](MITRE-ATTACK-Practice/README.md)
@@ -278,7 +252,7 @@ flowchart TD
     A["Tiếp nhận Alert"] --> B["Xác minh Source, Time, Host, User và Rule"]
     B --> C["Correlate Splunk, Sysmon, EDR và Network Evidence"]
     C --> D{"Hoạt động đã được cấp phép?"}
-    D -- "Có" --> E["Phân loại: True Positive — Authorized Simulation"]
+    D -- "Có" --> E["Phân loại: True Positive - Authorized Simulation"]
     D -- "Không / Chưa rõ" --> F["Đánh giá Severity, Scope và Business Impact"]
     E --> G["Ghi lại Evidence và Lessons Learned"]
     F --> H["Enrich IOC liên quan bằng MISP / VirusTotal"]
@@ -365,29 +339,6 @@ Luồng n8n thể hiện khả năng Orchestration và Analyst Assistance. AI Ou
 
 ---
 
-## Cấu trúc Repository
-
-```text
-SOAR_HomeLab/
-├── README.md
-├── SuperSOAR_homelab/
-│   ├── SuperSOAR_HomeLab.md
-│   └── SuperSOAR_HomeLab_images/
-└── MITRE-ATTACK-Practice/
-    ├── README.md
-    └── Ransomware-Simulation/
-        ├── Sigma_Rule/
-        ├── phase-1-execution/
-        ├── phase-2-privilege-escalation/
-        └── phase-3-defense-evasion/
-```
-
-- [Báo cáo triển khai SuperSOAR chi tiết](SuperSOAR_homelab/SuperSOAR_HomeLab.md)
-- [MITRE ATT&CK Validation Workspace](MITRE-ATTACK-Practice/README.md)
-- [PowerShell Sigma Detection](MITRE-ATTACK-Practice/Ransomware-Simulation/Sigma_Rule/T1059.001.yaml)
-
----
-
 ## Quyết định kỹ thuật và bài học kinh nghiệm
 
 ### 1. Một Activity Chain không nên tạo thành tám Alert rời rạc
@@ -424,14 +375,10 @@ Việc chuyển Victim Endpoint sang VMnet4 được theo dõi như một Harden
 | ✅ Đã triển khai | MISP / VirusTotal / AbuseIPDB Enrichment Paths |
 | ✅ Đã triển khai | Atomic Red Team Investigation Reports và ATT&CK Mapping |
 | ✅ Đã triển khai | Sigma Rule cho PowerShell EncodedCommand |
+| ✅ Đã triển khai | Suricata Blocked-scanner Correlation và Noise Reduction |
 | 🔧 Đang hoàn thiện | Alert Normalization, Risk Scoring, Correlation và Deduplication |
-| 🔧 Đang hoàn thiện | Suricata Blocked-scanner Correlation và Noise Reduction |
 | 🧭 Dự kiến | Chuyển Windows 10 Victim sang VMnet4 `172.16.10.0/24` |
-| 🧭 Dự kiến | Xác minh Default-deny Inter-zone Firewall Policy |
-| 🧭 Dự kiến | Enforce Verified TLS cho toàn bộ Internal API Integration |
-| 🧭 Dự kiến | Centralize Secrets và loại Credential khỏi Workflow Definition |
 | 🧭 Dự kiến | Thêm Approval-gated Containment Playbooks |
-| 🧭 Dự kiến | Thêm Detection-as-code Testing và CI Validation |
 | 🧭 Dự kiến | Mở rộng ATT&CK Coverage cho Persistence, Credential Access, Discovery, Lateral Movement và Impact |
 
 ---
@@ -439,11 +386,6 @@ Việc chuyển Victim Endpoint sang VMnet4 được theo dõi như một Harden
 ## An toàn và sử dụng có trách nhiệm
 
 - Toàn bộ Attack Simulation chỉ được thực hiện trong HomeLab cô lập và có cấp phép.
-- Repository không chứa Production Credential, Customer Information hoặc Confidential Organizational Telemetry.
-- API Token, Webhook Secret, Tunnel Credential và Password không được Commit.
-- AI-assisted Analysis chỉ tiếp nhận Controlled hoặc Sanitized Lab Data.
-- Automated Containment luôn yêu cầu Human Approval để giảm nguy cơ hành động sai.
-- Windows Server 2012 R2 chỉ đóng vai trò Deliberately Legacy Lab Workload và không được sử dụng như Production Service.
 - Dự án phục vụ Defensive Education, Detection Validation và Incident Response Practice.
 
 ---
