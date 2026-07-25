@@ -84,7 +84,7 @@ Dự án không được giới thiệu như một Production SOC hoặc nền t
 > [!IMPORTANT]
 > VMnet4 với subnet `172.16.10.0/24` trong sơ đồ là **Target Architecture**, chưa phải bằng chứng rằng VMnet4 đã được triển khai. Windows 10 Victim hiện vẫn sử dụng địa chỉ `172.16.1.10` cho đến khi hoàn thành Migration, Firewall Rules và Validation.
 
-### Target Segmented Architecture
+### Architecture
 
 <p align="center">
   <img src="SuperSOAR_homelab/SuperSOAR_HomeLab_images/img_002_bc809946.png" width="100%" alt="Kiến trúc phân vùng mục tiêu của SuperSOC"/>
