@@ -1,0 +1,129 @@
+# Đếm tổng số lượng cảnh báo an ninh (Alerts) được kích hoạt
+Name: Alerts
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| stats count
+
+# Top 15 Cổng đích (Destination Port) xuất hiện nhiều nhất trong các cảnh báo
+Name: Destination Ports
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| stats count by dest_port 
+| sort - count 
+| head 15 
+| rename dest_port as "Destination Port"
+
+# Thống kê Top 40 truy vấn tên miền DNS (RRNAME) phổ biến nhất kèm IP nguồn
+Name: DNS
+Query: index=suricata 
+| spath 
+| search event_type=dns 
+| rename dns.rrname as rrname 
+| stats count by rrname src_ip 
+| sort - count 
+| head 40
+
+# Thống kê tỷ lệ phân bổ các loại sự kiện (event_type) thu thập từ Suricata
+Name: Event Types
+Query: index=suricata 
+| spath 
+| stats count by event_type 
+| sort - count 
+| head 12
+
+# Đếm tổng số cảnh báo mức độ nghiêm trọng cao (Critical & High - Severity <= 2)
+Name: High Severity Alerts
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval sev=tonumber(coalesce('alert.severity', severity)) 
+| where sev<=2 
+| stats count
+
+# Bảng theo dõi 40 yêu cầu HTTP mới nhất kèm Hostname, URL và User-Agent
+Name: HTTP
+Query: index=suricata 
+| spath 
+| search event_type=http 
+| rename http.hostname as hostname http.url as url http.http_user_agent as user_agent 
+| table _time src_ip dest_ip hostname url user_agent 
+| sort - _time 
+| head 40
+
+# Bảng chi tiết 50 cảnh báo vi phạm mới nhất đầy đủ thông tin định danh và địa chỉ IP
+Name: Recent Alerts
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval signature=coalesce('alert.signature', signature, rule, "unknown"), category=coalesce('alert.category', category, "unknown"), severity=coalesce('alert.severity', severity, "unknown") 
+| table _time severity signature category src_ip src_port dest_ip dest_port proto host 
+| sort - _time 
+| head 50
+
+# Thống kê phân bổ số lượng cảnh báo theo mức độ nghiêm trọng (Critical, High, Medium, Low)
+Name: Severity
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval sev=tonumber(coalesce('alert.severity', severity)) 
+| eval Severity=case(sev=1,"Critical", sev=2,"High", sev=3,"Medium", sev>=4,"Low", true(),"Unknown") 
+| stats count by Severity 
+| sort - count
+
+# Biểu đồ chuỗi thời gian phân bổ các loại sự kiện Suricata theo từng 30 phút
+Name: Suricata Timeline
+Query: index=suricata 
+| spath 
+| timechart span=30m count by event_type limit=8 useother=true
+
+# Thống kê Top 40 tên miền dịch vụ TLS (SNI - Server Name Indication) được kết nối
+Name: TLS
+Query: index=suricata 
+| spath 
+| search event_type=tls 
+| rename tls.sni as sni 
+| stats count by sni src_ip dest_ip 
+| sort - count 
+| head 40
+
+# Top 15 luật/chữ ký cảnh báo Suricata bị kích hoạt nhiều nhất
+Name: Top Signatures
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval signature=coalesce('alert.signature', signature, rule, "unknown") 
+| stats count by signature 
+| sort - count 
+| head 15 
+| rename signature as Signature
+
+# Top 15 Địa chỉ IP nguồn kích hoạt nhiều cảnh báo vi phạm nhất
+Name: Top Source IPs
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| stats count by src_ip 
+| sort - count 
+| head 15 
+| rename src_ip as "Source IP"
+
+# Đếm tổng toàn bộ số lượng sự kiện/bản ghi đã ghi nhận trong index Suricata
+Name: Total Suricata Events
+Query: index=suricata 
+| stats count
+
+# Đếm số lượng luật/chữ ký cảnh báo (Unique Signatures) độc lập bị vi phạm
+Name: Unique Signatures
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval signature=coalesce('alert.signature', signature, rule, "unknown") 
+| stats dc(signature) as count
+
+# Đếm số lượng địa chỉ IP nguồn độc lập (Unique Sources) ghi nhận trong hệ thống
+Name: Unique Sources
+Query: index=suricata 
+| spath 
+| stats dc(src_ip) as count

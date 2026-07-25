@@ -1,0 +1,160 @@
+# Kiểm tra độ tươi (Freshness) và trạng thái thu thập log của toàn bộ các Index chính trong SOC
+Name: Expected Data Source Freshness (Base Query)
+Query: | makeresults
+| eval index=split("edr,win10eventlog,win10sysmon,win10powershell,pfsense,suricata,zeek",",")
+| mvexpand index
+| fields index
+| join type=left index [ | tstats count latest(_time) as last_event where (index=edr OR index=win10eventlog OR index=win10sysmon OR index=win10powershell OR index=pfsense OR index=suricata OR index=zeek) by index ]
+| eval Event_Count=coalesce(count,0), Age_Minutes=if(isnull(last_event),null(),round((now()-last_event)/60,1))
+| eval Status=case(isnull(last_event),"MISSING",Age_Minutes<=15,"HEALTHY",Age_Minutes<=60,"DELAYED",true(),"STALE")
+| eval Last_Event=if(isnull(last_event),"No event in selected range",strftime(last_event,"%Y-%m-%d %H:%M:%S"))
+| rename index as Data_Source
+| table Data_Source Status Age_Minutes Last_Event Event_Count
+| sort Data_Source
+
+# Đếm số lượng nguồn dữ liệu thu thập log hoạt động bình thường (Healthy)
+Name: Healthy Data Source Count
+Query: | search Status="HEALTHY"
+| stats count
+
+# Đếm số lượng nguồn dữ liệu đang bị gián đoạn, trễ log hoặc mất kết nối
+Name: Degraded Data Source Count
+Query: | search Status!="HEALTHY"
+| stats count
+
+# Kiểm tra chi tiết cấu hình và tính sẵn sàng của các Saved Search thuộc danh mục SOC
+Name: SOC Alert Configuration Validation (Base Query)
+Query: | rest /servicesNS/-/-/saved/searches splunk_server=local count=0
+| search title="SOC - *"
+| eval disabled_num=tonumber(disabled), scheduled_num=tonumber(is_scheduled), webhook_num=tonumber('action.webhook'), track_num=tonumber('alert.track')
+| eval action_list=lower(mvjoin(actions,","))
+| eval Enabled=if(disabled_num=0 AND scheduled_num=1,"YES","NO"), Webhook=if(webhook_num=1 OR like(action_list,"%webhook%"),"YES","NO"), Tracked=if(track_num=1,"YES","NO")
+| eval Validation=case(disabled_num=1,"DISABLED",scheduled_num!=1,"NOT SCHEDULED",Webhook="NO","NO WEBHOOK",Tracked="NO","NOT TRACKED",true(),"READY")
+| eval Next_Run=coalesce(strftime(tonumber(next_scheduled_time),"%Y-%m-%d %H:%M:%S"),next_scheduled_time,"-")
+| rename title as Alert_Name 'alert.severity' as Configured_Severity cron_schedule as Cron 'dispatch.earliest_time' as Search_Earliest 'dispatch.latest_time' as Search_Latest
+| table Alert_Name Validation Enabled Webhook Tracked Configured_Severity Cron Search_Earliest Search_Latest Next_Run
+| sort Alert_Name
+
+# Đếm tổng số lượng quy tắc cảnh báo SOC đã được thiết lập
+Name: Configured SOC Alert Count
+Query: | stats count
+
+# Đếm số lượng quy tắc cảnh báo SOC đã sẵn sàng thực thi (Validation = READY)
+Name: Ready SOC Alert Count
+Query: | search Validation="READY"
+| stats count
+
+# Đếm số lượng quy tắc cảnh báo đã được tích hợp hành vi Webhook
+Name: Webhook-Configured Alert Count
+Query: | search Webhook="YES"
+| stats count
+
+# Kiểm tra hiệu năng và lịch sử thực thi các quy tắc cảnh báo của bộ lập lịch Splunk Scheduler
+Name: SOC Alert Scheduler Health (Base Query)
+Query: search index=_internal source="*scheduler.log" sourcetype=scheduler savedsearch_name="SOC - *"
+| eval execution_status=lower(coalesce(status,"unknown")), result_total=coalesce(tonumber(result_count),0), runtime_sec=coalesce(tonumber(run_time),0)
+| stats latest(_time) as last_run_epoch latest(execution_status) as Last_Status latest(reason) as Last_Reason count as Runs sum(result_total) as Matched_Results sum(eval(if(execution_status="skipped",1,0))) as Skipped sum(eval(if(match(execution_status,"fail|error"),1,0))) as Failed avg(runtime_sec) as Avg_Runtime_Sec by savedsearch_name
+| eval Last_Run=strftime(last_run_epoch,"%Y-%m-%d %H:%M:%S"), Avg_Runtime_Sec=round(Avg_Runtime_Sec,2), Last_Reason=substr(coalesce(Last_Reason,""),1,240)
+| rename savedsearch_name as Alert_Name
+| table Alert_Name Last_Run Last_Status Runs Matched_Results Skipped Failed Avg_Runtime_Sec Last_Reason
+| sort Alert_Name
+
+# Tổng hợp số lượng lỗi phát sinh trong quá trình lập lịch chạy cảnh báo (Skipped + Failed)
+Name: Scheduler Issue Count
+Query: | stats sum(Skipped) as skipped_total sum(Failed) as failed_total
+| eval count=coalesce(skipped_total,0)+coalesce(failed_total,0)
+| fields count
+
+# Tương quan lưu lượng mạng trùng khớp 5-Tuple (IP nguồn/đích, Port nguồn/đích, Protocol) giữa pfSense Block và Suricata Alert trong 5 phút
+Name: pfSense and Suricata 5-Tuple Correlation
+Query: search index=pfsense
+| eval fw_action=lower(coalesce(action,act,filter_action)), src_ip=coalesce(src_ip,src,source_ip), dest_ip=coalesce(dest_ip,dst,destination_ip), src_port=tostring(coalesce(src_port,sport,source_port)), dest_port=tostring(coalesce(dest_port,dport,destination_port)), proto=lower(coalesce(proto,protocol))
+| where (fw_action="block" OR fw_action="deny") AND isnotnull(src_ip) AND isnotnull(dest_ip) AND isnotnull(src_port) AND isnotnull(dest_port) AND isnotnull(proto)
+| bin _time span=5m
+| eval source_type="pfSense", signature=""
+| table _time src_ip dest_ip src_port dest_port proto source_type fw_action signature
+| append [ search index=suricata event_type=alert
+  | spath
+  | eval src_ip=coalesce(src_ip,'flow.src_ip'), dest_ip=coalesce(dest_ip,'flow.dest_ip'), src_port=tostring(coalesce(src_port,'flow.src_port')), dest_port=tostring(coalesce(dest_port,'flow.dest_port')), proto=lower(coalesce(proto,'flow.proto')), signature=coalesce('alert.signature',signature,rule,"unknown"), fw_action=""
+  | where isnotnull(src_ip) AND isnotnull(dest_ip) AND isnotnull(src_port) AND isnotnull(dest_port) AND isnotnull(proto)
+  | bin _time span=5m
+  | eval source_type="Suricata"
+  | table _time src_ip dest_ip src_port dest_port proto source_type fw_action signature ]
+| stats values(source_type) as Sources values(fw_action) as Firewall_Action values(signature) as Suricata_Signature count as Matched_Events by _time src_ip dest_ip src_port dest_port proto
+| where mvfind(Sources,"pfSense")>=0 AND mvfind(Sources,"Suricata")>=0
+| eval Window=strftime(_time,"%Y-%m-%d %H:%M")." to +5m"
+| table Window src_ip dest_ip src_port dest_port proto Firewall_Action Suricata_Signature Matched_Events Sources
+| sort 0 - Window
+
+# Tương quan hành vi nghi vấn giữa cảnh báo EDR LimaCharlie và ScriptBlock Logging PowerShell 4104 trên cùng Endpoint trong 5 phút
+Name: LimaCharlie and PowerShell Correlation
+Query: search index=edr ("LC - Suspicious PowerShell Execution" OR author="_ext-sigma-*" OR author="_soteria-rules-*" OR author="longniki05@gmail.com")
+| eval endpoint_raw=coalesce(hostname,host,'routing.hostname','event.hostname'), Endpoint=upper(mvindex(split(endpoint_raw,"."),0)), User_Name=coalesce('event.USER_NAME',USER_NAME,user,"unknown"), process_image=coalesce('event.FILE_PATH','event.PROCESS_PATH',process_path,file_path,""), Command=coalesce('event.COMMAND_LINE',COMMAND_LINE,command_line,""), Detection=coalesce('detect.event','detect.name',cat,author,"LimaCharlie detection")
+| where len(Endpoint)>0
+| bin _time span=5m
+| eval Source_Type="LimaCharlie EDR", Evidence=Detection." | ".process_image." | ".substr(Command,1,500)
+| table _time Endpoint User_Name Source_Type Evidence
+| append [ search index=win10powershell EventCode=4104
+  | eval endpoint_raw=coalesce(Computer,ComputerName,host), Endpoint=upper(mvindex(split(endpoint_raw,"."),0)), User_Name=coalesce(UserID,User,user,"unknown"), Command=coalesce(ScriptBlockText,Message,_raw)
+  | where match(lower(Command),"encodedcommand|frombase64string|invoke-expression|downloadstring|iex\\s*\\(")
+  | bin _time span=5m
+  | eval Source_Type="PowerShell 4104", Evidence=substr(Command,1,500)
+  | table _time Endpoint User_Name Source_Type Evidence ]
+| stats values(Source_Type) as Sources values(User_Name) as Users values(Evidence) as Evidence count as Matched_Events by _time Endpoint
+| where mvfind(Sources,"LimaCharlie EDR")>=0 AND mvfind(Sources,"PowerShell 4104")>=0
+| eval Window=strftime(_time,"%Y-%m-%d %H:%M")." to +5m"
+| table Window Endpoint Users Sources Matched_Events Evidence
+| sort 0 - Window
+
+# Tương quan truy vấn tên miền DNS trùng khớp giữa Suricata DNS và Sysmon EventID 22 trong 5 phút
+Name: Suricata and Sysmon DNS Correlation
+Query: search index=suricata (event_type=dns OR event_type=alert)
+| spath
+| eval Domain=lower(trim(coalesce('dns.rrname','dns.query',query))), Endpoint=coalesce(src_ip,'flow.src_ip',host), Process=""
+| where len(Domain)>0
+| bin _time span=5m
+| eval Source_Type="Suricata"
+| table _time Domain Endpoint Process Source_Type
+| append [ search index=win10sysmon EventCode=22
+  | eval Domain=lower(trim(QueryName)), endpoint_raw=coalesce(Computer,ComputerName,host), Endpoint=upper(mvindex(split(endpoint_raw,"."),0)), Process=coalesce(Image,ProcessName,"unknown")
+  | where len(Domain)>0
+  | bin _time span=5m
+  | eval Source_Type="Sysmon DNS"
+  | table _time Domain Endpoint Process Source_Type ]
+| stats values(Source_Type) as Sources values(Endpoint) as Endpoints values(Process) as Processes count as Matched_Events by _time Domain
+| where mvfind(Sources,"Suricata")>=0 AND mvfind(Sources,"Sysmon DNS")>=0
+| eval Window=strftime(_time,"%Y-%m-%d %H:%M")." to +5m"
+| table Window Domain Endpoints Processes Matched_Events Sources
+| sort 0 - Window
+
+# Bảng đánh giá tỷ lệ phần trăm sẵn sàng của các trường thông tin bắt buộc phục vụ luật tương quan
+Name: Correlation Field Readiness
+Query: search index=pfsense
+| eval src_ip=coalesce(src_ip,src,source_ip), dest_ip=coalesce(dest_ip,dst,destination_ip), src_port=coalesce(src_port,sport,source_port), dest_port=coalesce(dest_port,dport,destination_port), proto=coalesce(proto,protocol)
+| stats count as Total sum(eval(if(isnotnull(src_ip) AND isnotnull(dest_ip) AND isnotnull(src_port) AND isnotnull(dest_port) AND isnotnull(proto),1,0))) as Usable
+| eval Data_Source="pfSense", Required_Fields="src_ip, dest_ip, src_port, dest_port, proto"
+| append [ search index=suricata event_type=alert
+  | spath
+  | eval src_ip=coalesce(src_ip,'flow.src_ip'), dest_ip=coalesce(dest_ip,'flow.dest_ip'), src_port=coalesce(src_port,'flow.src_port'), dest_port=coalesce(dest_port,'flow.dest_port'), proto=coalesce(proto,'flow.proto'), signature=coalesce('alert.signature',signature,rule)
+  | stats count as Total sum(eval(if(isnotnull(src_ip) AND isnotnull(dest_ip) AND isnotnull(src_port) AND isnotnull(dest_port) AND isnotnull(proto) AND isnotnull(signature),1,0))) as Usable
+  | eval Data_Source="Suricata alerts", Required_Fields="5-tuple, alert.signature" ]
+| append [ search index=edr (author="_ext-sigma-*" OR author="_soteria-rules-*" OR author="longniki05@gmail.com" OR "LC - Suspicious PowerShell Execution")
+  | eval endpoint=coalesce(hostname,host,'routing.hostname','event.hostname'), rule_name=coalesce('detect.event','detect.name',cat,author), event_id=coalesce('routing.event_id','event.EVENT_ID',event_id)
+  | stats count as Total sum(eval(if(isnotnull(endpoint) AND isnotnull(rule_name) AND isnotnull(event_id),1,0))) as Usable
+  | eval Data_Source="LimaCharlie detections", Required_Fields="endpoint, rule_name, event_id" ]
+| append [ search index=win10powershell EventCode=4104
+  | eval endpoint=coalesce(Computer,ComputerName,host), script=coalesce(ScriptBlockText,Message)
+  | stats count as Total sum(eval(if(isnotnull(endpoint) AND isnotnull(script),1,0))) as Usable
+  | eval Data_Source="PowerShell 4104", Required_Fields="endpoint, ScriptBlockText" ]
+| append [ search index=win10sysmon EventCode=22
+  | eval endpoint=coalesce(Computer,ComputerName,host), domain=QueryName, process=coalesce(Image,ProcessName)
+  | stats count as Total sum(eval(if(isnotnull(endpoint) AND isnotnull(domain) AND isnotnull(process),1,0))) as Usable
+  | eval Data_Source="Sysmon DNS", Required_Fields="endpoint, QueryName, Image" ]
+| eval Readiness_Pct=if(Total>0,round(100*Usable/Total,1),0), Status=case(Total=0,"NO DATA",Readiness_Pct>=95,"READY",Readiness_Pct>=70,"PARTIAL",true(),"NOT READY")
+| table Data_Source Status Readiness_Pct Usable Total Required_Fields
+| sort Data_Source
+
+# Thống kê khối lượng bản ghi (Event Volume) đẩy về của từng Index
+Name: Ingestion Volume
+Query: | fields Data_Source Event_Count
+| sort 0 - Event_Count

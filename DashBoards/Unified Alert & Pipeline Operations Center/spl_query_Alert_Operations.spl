@@ -1,0 +1,64 @@
+# Truy vấn gốc trích xuất toàn bộ dữ liệu cảnh báo đã kích hoạt (Fired Alerts) từ Splunk REST API
+Name: Tracked SOC Alert Instances (Base Query)
+Query: | rest /servicesNS/-/-/alerts/fired_alerts/- splunk_server=local count=0
+| addinfo
+| eval trigger_epoch=coalesce(tonumber(trigger_time),strptime(published,"%Y-%m-%dT%H:%M:%S%z")), _time=trigger_epoch
+| where isnotnull(_time) AND _time>=info_min_time AND _time<=info_max_time
+| search savedsearch_name="SOC - *"
+| eval severity_raw=lower(tostring(coalesce(severity,"medium")))
+| eval severity=case(severity_raw="5" OR severity_raw="critical","critical",severity_raw="4" OR severity_raw="high","high",severity_raw="3" OR severity_raw="medium","medium",severity_raw="2" OR severity_raw="low","low",severity_raw="1" OR severity_raw="info" OR severity_raw="informational","informational",true(),severity_raw)
+| eval alert_name_lc=lower(savedsearch_name)
+| eval alert_source=case(match(alert_name_lc,"limacharlie|\bedr\b"),"LimaCharlie EDR",match(alert_name_lc,"suricata|\bids\b|\bips\b"),"Suricata IDS/IPS",match(alert_name_lc,"powershell"),"PowerShell",match(alert_name_lc,"sysmon|windows"),"Windows / Sysmon",match(alert_name_lc,"pfsense|firewall"),"pfSense",true(),"Other")
+| eval action_list=lower(mvjoin(actions,",")), iris_bound=if(like(action_list,"%webhook%"),"YES","NO")
+| search severity="$severity_filter$" alert_source="$source_filter$"
+| eval Trigger_Time=strftime(_time,"%Y-%m-%d %H:%M:%S")
+| rename savedsearch_name as Alert_Name severity as Severity alert_source as Alert_Source iris_bound as IRIS_Bound alert_type as Alert_Type digest_mode as Mode sid as Search_SID expiration_time_rendered as Expires actions as Actions
+| table _time Trigger_Time Severity Alert_Name Alert_Source IRIS_Bound Alert_Type Mode Actions Search_SID Expires
+| sort 0 - _time
+
+# Đếm tổng số lượng cảnh báo an ninh đã được ghi nhận trong hệ thống
+Name: Tracked Alert Count
+Query: | search Severity="*"
+| stats count
+
+# Đếm số lượng cảnh báo có mức độ nghiêm trọng thuộc nhóm High hoặc Critical
+Name: High and Critical Alert Count
+Query: | search Severity IN ("high","critical")
+| stats count
+
+# Đếm số lượng quy tắc cảnh báo (Alert Rules) độc lập đã từng bị kích hoạt
+Name: Unique Triggered SOC Rules
+Query: | stats dc(Alert_Name) as count
+
+# Đếm số lượng cảnh báo được cấu hình kết nối tự động sang hệ thống IRIS SOAR
+Name: IRIS-Bound Trigger Count
+Query: | search IRIS_Bound="YES"
+| stats count
+
+# Biểu đồ chuỗi thời gian thống kê tần suất xuất hiện cảnh báo mỗi 30 phút theo Severity
+Name: Alert Timeline
+Query: | rename Severity as severity
+| timechart span=30m count by severity limit=6 useother=false
+
+# Thống kê tỷ lệ phân bổ cảnh báo theo từng mức độ nghiêm trọng (Severity)
+Name: Alert Severity Mix
+Query: | stats count by Severity
+| sort - count
+
+# Thống kê tỷ lệ phân bổ cảnh báo theo từng nguồn gốc dữ liệu (Alert Source)
+Name: Alert Source Mix
+Query: | stats count by Alert_Source
+| sort - count
+
+# Top 10 quy tắc cảnh báo SOC bị kích hoạt nhiều lần nhất
+Name: Alert Rule Trigger Counts
+Query: | stats count by Alert_Name
+| sort 0 - count
+| head 10
+
+# Bảng tổng hợp tần suất kích hoạt, mốc thời gian gần nhất và trạng thái liên kết IRIS của từng Rule
+Name: Alert Trigger Summary
+Query: | stats count as Triggers max(_time) as latest_epoch values(Severity) as Severities values(Alert_Source) as Sources values(IRIS_Bound) as IRIS_Bound by Alert_Name
+| eval Latest_Trigger=strftime(latest_epoch,"%Y-%m-%d %H:%M:%S")
+| table Alert_Name Severities Sources Triggers Latest_Trigger IRIS_Bound
+| sort 0 - Triggers

@@ -1,0 +1,119 @@
+# Đếm tổng số quy tắc cảnh báo (rules) độc lập đã bị kích hoạt
+Name: Active Rules
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=source_rule output=sr
+| stats dc(sr) as count
+
+# Đếm số lượng cảnh báo mức độ nghiêm trọng cao (Critical / High / Priority >= 3)
+Name: Critical Alerts
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=detect_mtd.level output=det_level
+| spath path=priority output=det_priority
+| where det_level="high" OR det_level="critical" OR det_priority>=3
+| stats count
+
+# Thống kê Top 10 loại sự kiện EDR (Event Types) xuất hiện nhiều nhất
+Name: Event Types
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=routing.event_type output=evt_type
+| stats count by evt_type
+| sort -count
+| head 10
+| rename evt_type as "Event Type"
+
+# Đếm tổng số kỹ thuật tấn công theo khung MITRE ATT&CK đã phát hiện
+Name: MITRE Count
+Query: index=edr sourcetype="limacharlie:json"
+| spath output=tags path=rule_tags{}
+| mvexpand tags
+| where match(tags, "^attack\.t")
+| stats dc(tags) as count
+
+# Top 10 kỹ thuật MITRE ATT&CK bị vi phạm / kích hoạt nhiều nhất
+Name: MITRE Techniques
+Query: index=edr sourcetype="limacharlie:json"
+| spath output=tags path=rule_tags{}
+| mvexpand tags
+| where match(tags, "^attack\.t")
+| stats count by tags
+| sort -count
+| head 10
+| rename tags as "MITRE Technique"
+
+# Bảng 50 phát hiện EDR mới nhất kèm chi tiết Endpoint, IP, Severity và kỹ thuật MITRE ATT&CK
+Name: Recent Detections
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=cat output=Detection
+| spath path=routing.hostname output=Endpoint
+| spath path=routing.int_ip output=Source_IP
+| spath path=routing.ext_ip output=External_IP
+| spath path=routing.event_type output=Event_Type
+| spath path=source_rule output=Rule
+| spath path=author output=Author
+| spath path=detect_mtd.level output=det_level
+| spath path=priority output=det_priority
+| eval Severity=case(det_level="critical","CRITICAL", det_level="high","HIGH", det_level="medium","MEDIUM", det_level="low","LOW", det_priority>=3,"HIGH", det_priority>=2,"MEDIUM", 1=1,"INFO")
+| spath output=tags path=rule_tags{}
+| eval MITRE=mvjoin(mvfilter(match(tags,"^attack\.t")), ", ")
+| table _time Severity Detection Endpoint Source_IP External_IP Event_Type MITRE Rule Author
+| sort -_time
+| head 50
+
+# Thống kê phân bổ các mối đe doạ theo từng mức độ nghiêm trọng (Severity)
+Name: Severity Distribution
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=detect_mtd.level output=det_level
+| spath path=priority output=det_priority
+| eval severity=case(det_level="critical","critical", det_level="high","high", det_level="medium","medium", det_level="low","low", det_priority>=3,"high", det_priority>=2,"medium", det_priority>=1,"low", 1=1,"informational")
+| stats count by severity
+
+# Danh sách 30 tiến trình nghi vấn mới nhất kèm thông tin Command Line, Parent Process, PID và Hash
+Name: Suspicious Processes
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=routing.hostname output=Endpoint
+| spath path=detect.event.USER_NAME output=User
+| spath path=detect.event.FILE_PATH output=Process
+| spath path=detect.event.COMMAND_LINE output=CommandLine
+| spath path=detect.event.PARENT.FILE_PATH output=ParentProcess
+| spath path=detect.event.PROCESS_ID output=PID
+| spath path=detect.event.PARENT_PROCESS_ID output=PPID
+| spath path=detect.event.HASH output=Hash
+| spath path=cat output=Detection
+| table _time Endpoint User Process CommandLine ParentProcess PID PPID Hash Detection
+| sort -_time
+| head 30
+
+# Biểu đồ chuỗi thời gian số lượng mối đe doạ phát hiện mỗi 1 giờ phân theo danh mục
+Name: Detection Timeline
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=cat output=det_cat
+| timechart span=1h count by det_cat limit=6 useother=true
+
+# Top 10 danh mục mối đe dọa (Detection Categories) phổ biến nhất
+Name: Top Categories
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=cat output=det_cat
+| stats count by det_cat
+| sort -count
+| head 10
+| rename det_cat as "Detection Category"
+
+# Top 10 máy trạm / máy chủ ghi nhận số lượng phát hiện EDR nhiều nhất
+Name: Top Endpoints
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=routing.hostname output=ep_hostname
+| stats count by ep_hostname
+| sort -count
+| head 10
+| rename ep_hostname as "Endpoint"
+
+# Đếm tổng số lượng sự kiện / mối đe dọa EDR đã ghi nhận
+Name: Total Detections
+Query: index=edr sourcetype="limacharlie:json"
+| stats count
+
+# Đếm số lượng máy trạm / máy chủ độc lập (Unique Endpoints) bị ảnh hưởng
+Name: Unique Endpoints
+Query: index=edr sourcetype="limacharlie:json"
+| spath path=routing.hostname output=ep_hostname
+| stats dc(ep_hostname) as count

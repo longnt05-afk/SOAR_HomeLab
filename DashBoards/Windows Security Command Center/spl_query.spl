@@ -1,0 +1,100 @@
+# Thống kê Top 40 câu truy vấn DNS nổi bật thu thập từ Sysmon Event Code 22 kèm tiến trình khởi tạo
+Name: DNS Queries
+Query: index=win10sysmon EventCode=22 
+| stats count by QueryName Image host 
+| sort - count 
+| head 40
+
+# Bảng 50 sự kiện Windows Security giá trị cao/nguy cơ cao phân cấp độ rủi ro (CRITICAL, HIGH, MEDIUM)
+Name: High Value Windows Events
+Query: index=win10eventlog EventCode IN (1102,4625,4648,4672,4697,4698,4719,4720,4732,4740) 
+| eval Risk=case(EventCode=1102,"CRITICAL", EventCode=4625,"MEDIUM", true(),"HIGH") 
+| table _time Risk host user EventCode Message _raw 
+| sort - _time 
+| head 50
+
+# Bảng 50 tiến trình thực thi kỹ thuật LOLBin (certutil, bitsadmin, mshta, rundll32...) hoặc lệnh mã hóa
+Name: LOLBin Executions
+Query: index=win10sysmon EventCode=1 
+| where match(Image,"(?i)(certutil|bitsadmin|mshta|rundll32|regsvr32|wmic)\.exe$") OR match(CommandLine,"(?i)(certutil|bitsadmin|mshta|rundll32|regsvr32|wmic|encodedcommand|downloadstring)") 
+| eval Risk="MEDIUM" 
+| table _time Risk host User Image ParentImage CommandLine Hashes 
+| sort - _time 
+| head 50
+
+# Đếm tổng số lượt thực thi các công cụ có sẵn trên hệ thống bị lợi dụng (LOLBins)
+Name: LOLBin Count
+Query: index=win10sysmon EventCode=1 
+| where match(Image,"(?i)(certutil|bitsadmin|mshta|rundll32|regsvr32|wmic)\.exe$") OR match(CommandLine,"(?i)(certutil|bitsadmin|mshta|rundll32|regsvr32|wmic|encodedcommand|downloadstring)") 
+| stats count
+
+# Thống kê Top 40 kết nối mạng khởi tạo bởi tiến trình thu thập từ Sysmon Event Code 3
+Name: Process Network Connections
+Query: index=win10sysmon EventCode=3 
+| stats count by host Image DestinationIp DestinationPort 
+| sort - count 
+| head 40
+
+# Đếm tổng số bản ghi thực thi lệnh PowerShell Script Block (Event Code 4104)
+Name: PowerShell 4104
+Query: index=win10powershell EventCode=4104 
+| stats count
+
+# Thống kê Top 12 mã Event Code xuất hiện nhiều nhất trong Windows Security Log
+Name: Security EventCodes
+Query: index=win10eventlog 
+| stats count by EventCode 
+| sort - count 
+| head 12
+
+# Đếm tổng số lượng sự kiện an ninh thu thập từ Windows Security Event Log
+Name: Security Events
+Query: index=win10eventlog 
+| stats count
+
+# Bảng 50 lệnh PowerShell nghi vấn chứa từ khóa nguy cơ cao (encodedcommand, iex, downloadstring...)
+Name: Suspicious PowerShell
+Query: index=win10powershell EventCode=4104 
+| where match(coalesce(ScriptBlockText,_raw),"(?i)(encodedcommand|iex|invoke-expression|downloadstring|frombase64string)") 
+| eval Risk="HIGH" 
+| table _time Risk host User ScriptBlockText _raw 
+| sort - _time 
+| head 50
+
+# Đếm tổng số lượng câu lệnh PowerShell nghi vấn bị kích hoạt
+Name: Suspicious PowerShell Count
+Query: index=win10powershell EventCode=4104 
+| where match(coalesce(ScriptBlockText,_raw),"(?i)(encodedcommand|iex|invoke-expression|downloadstring|frombase64string)") 
+| stats count
+
+# Thống kê Top 12 mã Event Code xuất hiện nhiều nhất từ nhật ký Sysmon
+Name: Sysmon EventCodes
+Query: index=win10sysmon 
+| stats count by EventCode 
+| sort - count 
+| head 12
+
+# Đếm tổng toàn bộ số lượng sự kiện thu thập từ Sysmon
+Name: Sysmon Events
+Query: index=win10sysmon 
+| stats count
+
+# Top 10 máy trạm / máy chủ Windows phát sinh nhiều log nhất trong hệ thống
+Name: Top Windows Hosts
+Query: `win_indexes` 
+| stats count by host 
+| sort - count 
+| head 10 
+| rename host as Host
+
+# Tỷ lệ phân bổ dữ liệu giữa các nguồn log Windows (Security Log, Sysmon, PowerShell)
+Name: Windows Signal Mix
+Query: `win_indexes` 
+| eval Source=case(index="win10eventlog","Security Event Log", index="win10sysmon","Sysmon", index="win10powershell","PowerShell", true(), index) 
+| stats count by Source 
+| sort - count
+
+# Biểu đồ chuỗi thời gian biến động số lượng log Windows mỗi 30 phút phân theo Index
+Name: Windows Timeline
+Query: `win_indexes` 
+| timechart span=30m count by index limit=5 useother=false

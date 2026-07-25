@@ -1,0 +1,113 @@
+# Đếm tổng số lượng host (máy trạm/máy chủ) duy nhất đang hoạt động
+Name: Active Hosts
+Query: `soc_indexes` 
+| stats dc(host) as count
+
+# Đếm số lượng IP xuất hiện đồng thời trên cả Firewall (pfSense) và IDS (Suricata)
+Name: Correlated IPs
+Query: index=pfsense (block OR deny OR pass) 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| eval source_type="pfsense" 
+| table src_ip source_type 
+| append [ search index=suricata 
+| spath 
+| search event_type=alert 
+| eval source_type="suricata" 
+| table src_ip source_type ] 
+| stats values(source_type) as sources by src_ip 
+| where mvcount(sources)>=2 
+| stats count
+
+# Liệt kê danh sách IP trùng lặp giữa pfSense & Suricata cùng tần suất và mốc thời gian phát hiện
+Name: Priority Correlations
+Query: index=pfsense (block OR deny OR pass) 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| eval source_type="pfsense" 
+| table _time src_ip source_type 
+| append [ search index=suricata 
+| spath 
+| search event_type=alert 
+| eval source_type="suricata" 
+| table _time src_ip source_type ] 
+| stats values(source_type) as sources count min(_time) as first_seen max(_time) as last_seen by src_ip 
+| where mvcount(sources)>=2 
+| convert ctime(first_seen) ctime(last_seen) 
+| sort - count
+
+# Thống kê tổng số lượng log thu thập được phân theo từng Index
+Name: Data Sources
+Query: `soc_indexes` 
+| stats count by index 
+| sort - count 
+| rename index as "Data Source"
+
+# Tổng hợp 50 cảnh báo/sự kiện đáng chú ý mới nhất từ Suricata, Windows và pfSense
+Name: Recent Notables
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval Signal="Suricata Alert", Severity=coalesce('alert.severity', severity, "unknown"), Detail=coalesce('alert.signature', signature, rule, "unknown"), Source=src_ip, Destination=dest_ip 
+| table _time Signal Severity host Source Destination Detail 
+| append [ search index=win10eventlog EventCode IN (1102,4625,4648,4672,4697,4698,4719,4720,4732,4740) 
+| eval Signal="Windows High-Value Event", Severity=case(EventCode=1102,"critical", true(),"high"), Detail=coalesce(Message,_raw), Source=host, Destination="" 
+| table _time Signal Severity host Source Destination Detail ] 
+| append [ search index=pfsense (block OR deny) 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| eval Signal="pfSense Block", Severity="medium", Detail=_raw, Source=src_ip, Destination="" 
+| table _time Signal Severity host Source Destination Detail ] 
+| sort - _time 
+| head 50
+
+# Phân loại và thống kê tỷ lệ log theo phân vùng nghiệp vụ (Windows, Sysmon, Firewall, IDS...)
+Name: Signal Mix
+Query: `soc_indexes` 
+| eval Domain=case(index="win10eventlog","Windows Security", index="win10sysmon","Sysmon", index="win10powershell","PowerShell", index="pfsense","Firewall", index="suricata","IDS/IPS", true(), index) 
+| stats count by Domain 
+| sort - count
+
+# Vẽ biểu đồ chuỗi thời gian số lượng log phát sinh mỗi 30 phút phân theo Index
+Name: SOC Timeline
+Query: `soc_indexes` 
+| timechart span=30m count by index limit=10 useother=false
+
+# Đếm tổng số lượng cảnh báo vi phạm phát hiện bởi hệ thống Suricata IDS
+Name: Suricata Alerts
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| stats count
+
+# Top 10 thiết bị phát sinh nhiều log nhất trong hệ thống
+Name: Top Hosts
+Query: `soc_indexes` 
+| stats count by host 
+| sort - count 
+| head 10 
+| rename host as Host
+
+# Top 10 luật/chữ ký cảnh báo Suricata bị kích hoạt nhiều nhất
+Name: Top Suricata Signatures
+Query: index=suricata 
+| spath 
+| search event_type=alert 
+| eval signature=coalesce('alert.signature', signature, rule, "unknown") 
+| stats count by signature 
+| sort - count 
+| head 10 
+| rename signature as Signature
+
+# Đếm tổng toàn bộ số lượng sự kiện/log đã ghi nhận trong SOC
+Name: Total SOC Events
+Query: `soc_indexes` 
+| stats count
+
+# Thống kê tần suất xuất hiện của các mã Event ID quan trọng trên Windows
+Name: Windows Event Codes
+Query: index=win10eventlog EventCode IN (1102,4625,4648,4672,4697,4698,4719,4720,4732,4740) 
+| stats count by EventCode 
+| sort - count
+
+# Đếm tổng số sự kiện an ninh giá trị cao/nguy cơ cao trên hệ thống Windows
+Name: Windows High Value Events
+Query: index=win10eventlog EventCode IN (1102,4625,4648,4672,4697,4698,4719,4720,4732,4740) 
+| stats count

@@ -1,0 +1,91 @@
+# Thống kê tỷ lệ phân bổ các hành động của Firewall (Block/Deny vs Pass/Allow)
+Name: Action Breakdown
+Query: index=pfsense 
+| eval action=case(match(_raw,"(?i)block|deny"),"block", match(_raw,"(?i)pass|allow"),"pass", true(),"unknown") 
+| stats count by action 
+| sort - count
+
+# Đếm tổng số lượt kết nối bị Firewall ngăn chặn (Block/Deny)
+Name: Block Count
+Query: index=pfsense 
+| eval action=case(match(_raw,"(?i)block|deny"),"block", match(_raw,"(?i)pass|allow"),"pass", true(),"unknown") 
+| search action=block 
+| stats count
+
+# Biểu đồ chuỗi thời gian thống kê số lượng kết nối Pass/Block mỗi 30 phút
+Name: Firewall Timeline
+Query: index=pfsense 
+| eval action=case(match(_raw,"(?i)block|deny"),"block", match(_raw,"(?i)pass|allow"),"pass", true(),"unknown") 
+| timechart span=30m count by action limit=5 useother=false
+
+# Đếm tổng số lượt kết nối được Firewall cho phép đi qua (Pass/Allow)
+Name: Pass Count
+Query: index=pfsense 
+| eval action=case(match(_raw,"(?i)block|deny"),"block", match(_raw,"(?i)pass|allow"),"pass", true(),"unknown") 
+| search action=pass 
+| stats count
+
+# Danh sách 60 sự kiện Firewall mới nhất kèm chi tiết IP nguồn, IP đích và hành động
+Name: Recent Firewall Events
+Query: index=pfsense 
+| eval action=case(match(_raw,"(?i)block|deny"),"block", match(_raw,"(?i)pass|allow"),"pass", true(),"unknown") 
+| rex field=_raw max_match=0 "(?<ip_seen>\d{1,3}(?:\.\d{1,3}){3})" 
+| eval src_ip=mvindex(ip_seen,0), dest_ip=mvindex(ip_seen,1) 
+| table _time action host source sourcetype src_ip dest_ip _raw 
+| sort - _time 
+| head 60
+
+# Liệt kê chi tiết các IP nguồn bị chặn lặp đi lặp lại nhiều lần (từ 20 lần trở lên)
+Name: Repeated Blockers
+Query: index=pfsense (block OR deny) 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| stats count min(_time) as first_seen max(_time) as last_seen values(host) as hosts by src_ip 
+| where count>=20 
+| convert ctime(first_seen) ctime(last_seen) 
+| sort - count
+
+# Đếm tổng số lượng IP nguồn nghi vấn bị chặn từ 20 lần trở lên
+Name: Repeated Blockers Count
+Query: index=pfsense (block OR deny) 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| stats count by src_ip 
+| where count>=20 
+| stats count
+
+# Kiểm tra trạng thái và tần suất nhận log (Health Check) phân theo Host, Source và Sourcetype
+Name: Source Health
+Query: index=pfsense 
+| stats count min(_time) as first_seen max(_time) as last_seen by host source sourcetype 
+| convert ctime(first_seen) ctime(last_seen) 
+| sort - count
+
+# Top 15 địa chỉ IP đích nhận được nhiều truy cập/kết nối nhất
+Name: Top Destinations
+Query: index=pfsense 
+| rex field=_raw max_match=0 "(?<ip_seen>\d{1,3}(?:\.\d{1,3}){3})" 
+| eval dest_ip=mvindex(ip_seen,1) 
+| where isnotnull(dest_ip) 
+| stats count by dest_ip 
+| sort - count 
+| head 15 
+| rename dest_ip as "Destination IP"
+
+# Top 15 địa chỉ IP nguồn khởi tạo nhiều truy cập/kết nối nhất
+Name: Top Sources
+Query: index=pfsense 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| stats count by src_ip 
+| sort - count 
+| head 15 
+| rename src_ip as "Source IP"
+
+# Đếm tổng số lượng sự kiện/log ghi nhận từ pfSense Firewall
+Name: Total Firewall Events
+Query: index=pfsense 
+| stats count
+
+# Đếm tổng số lượng địa chỉ IP nguồn duy nhất đã ghi nhận
+Name: Unique Sources
+Query: index=pfsense 
+| rex field=_raw "(?<src_ip>\d{1,3}(?:\.\d{1,3}){3})" 
+| stats dc(src_ip) as count
