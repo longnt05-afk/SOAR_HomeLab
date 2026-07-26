@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:050b0d,45:0b3d2e,100:00ff88&height=220&section=header&text=SuperSOC%20%2F%20SuperSOAR%20HomeLab&fontSize=40&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=Detection%20Engineering%20%E2%80%A2%20Threat%20Validation%20%E2%80%A2%20Automated%20Incident%20Response&descAlignY=58&descSize=17" width="100%" alt="SuperSOC / SuperSOAR HomeLab"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:050b0d,45:0b3d2e,100:00ff88&height=220&section=header&text=SuperSOC%20%2F%20SOAR%20HomeLab&fontSize=40&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=Detection%20Engineering%20%E2%80%A2%20Threat%20Validation%20%E2%80%A2%20Automated%20Incident%20Response&descAlignY=58&descSize=17" width="100%" alt="SuperSOC / SuperSOAR HomeLab"/>
 
 <p>
   <img src="https://img.shields.io/badge/LAB_STATUS-ACTIVE-00c853?style=for-the-badge&labelColor=0b0f14" alt="Trạng thái lab: đang hoạt động"/>
