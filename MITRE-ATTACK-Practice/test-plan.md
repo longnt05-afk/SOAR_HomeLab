@@ -11,7 +11,7 @@ This ransomware simulation campaign is designed to validate endpoint, network, E
 
 ### Phase 3 - Defense Evasion
 - T1685.19 - Disable or Modify Tools
-- T1070.001 - Clear Windows Event Logs
+- T1070.001 - Clear Windows Event Logs => T1685.005
 - T1036.007 - Double File Extension
 - T1218.005 - Mshta [Optional]
 - T1218.007 - Msiexec [Optional]
