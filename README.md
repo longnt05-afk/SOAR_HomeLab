@@ -354,7 +354,6 @@ Luồng n8n thể hiện khả năng Orchestration và Analyst Assistance. AI Ou
 | ✅ Đã triển khai | Sigma Rule cho PowerShell EncodedCommand |
 | ✅ Đã triển khai | Suricata Blocked-scanner Correlation và Noise Reduction |
 | 🔧 Đang hoàn thiện | Alert Normalization, Risk Scoring, Correlation và Deduplication |
-| 🧭 Dự kiến | Chuyển Windows 10 Victim sang VMnet4 `172.16.10.0/24` |
 | 🧭 Dự kiến | Thêm Approval-gated Containment Playbooks |
 | 🧭 Dự kiến | Mở rộng ATT&CK Coverage cho Persistence, Credential Access, Discovery, Lateral Movement và Impact |
 
