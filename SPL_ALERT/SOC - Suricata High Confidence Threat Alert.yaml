@@ -1,0 +1,49 @@
+index=suricata
+| spath
+| search event_type="alert"
+| eval signature=coalesce('alert.signature',signature)
+| eval signature_id=coalesce('alert.signature_id',signature_id)
+| eval category=coalesce('alert.category',category)
+| eval severity=coalesce('alert.severity',severity)
+| eval sev_num=tonumber(severity)
+| search signature="*MALWARE*" OR signature="*TROJAN*" OR signature="*CNC*" OR signature="*C2*" OR signature="*EXPLOIT*" OR category="*Malware*" OR category="*Command and Control*" OR category="*Exploit*" OR sev_num<=2
+| stats count as alert_count values(signature) as signatures values(signature_id) as signature_ids values(category) as categories values(severity) as severities min(sev_num) as min_suricata_severity values(dest_port) as dest_ports min(_time) as first_seen max(_time) as last_seen by src_ip dest_ip proto
+| lookup soc_assets asset_ip as src_ip OUTPUT asset_name as src_asset_name asset_hostname as src_asset_hostname asset_role as src_asset_role criticality as src_criticality zone as src_zone is_managed as src_is_managed iris_asset_type_id as src_asset_type_id
+| lookup soc_assets asset_ip as dest_ip OUTPUT asset_name as dest_asset_name asset_hostname as dest_asset_hostname asset_role as dest_asset_role criticality as dest_criticality zone as dest_zone is_managed as dest_is_managed iris_asset_type_id as dest_asset_type_id
+| eval src_is_managed=lower(coalesce(src_is_managed,"false")),dest_is_managed=lower(coalesce(dest_is_managed,"false"))
+| eval affected_side=case(src_is_managed="false" AND dest_is_managed="true","dest",src_is_managed="true" AND dest_is_managed="false","src",src_is_managed="true" AND dest_is_managed="true","dest",true(),"none")
+| eval affected_asset_ip=case(affected_side="src",src_ip,affected_side="dest",dest_ip,true(),"")
+| eval affected_asset_name=case(affected_side="src",coalesce(src_asset_name,src_asset_hostname,src_ip),affected_side="dest",coalesce(dest_asset_name,dest_asset_hostname,dest_ip),true(),"")
+| eval affected_asset_hostname=case(affected_side="src",src_asset_hostname,affected_side="dest",dest_asset_hostname,true(),"")
+| eval asset_role=case(affected_side="src",src_asset_role,affected_side="dest",dest_asset_role,true(),"")
+| eval asset_criticality=case(affected_side="src",src_criticality,affected_side="dest",dest_criticality,true(),"")
+| eval asset_zone=case(affected_side="src",src_zone,affected_side="dest",dest_zone,true(),"")
+| eval asset_type_id=case(affected_side="src",src_asset_type_id,affected_side="dest",dest_asset_type_id,true(),"")
+| eval affected_asset_is_managed=if(affected_side!="none","true","false")
+| eval asset_description="Managed asset affected by a Suricata high-confidence detection"
+| eval asset_tags="managed-asset,network,suricata,soc-lab"
+| eval ioc_side=case(src_is_managed="false" AND dest_is_managed="true","src",src_is_managed="true" AND dest_is_managed="false","dest",true(),"none")
+| eval ioc_value=case(ioc_side="src",src_ip,ioc_side="dest",dest_ip,true(),"")
+| eval ioc_role=case(ioc_side="src","source",ioc_side="dest","destination",true(),"")
+| eval ioc_type=case(len(ioc_value)=0,"",match(ioc_value,":"),"ipv6",true(),"ipv4")
+| eval ioc_description=case(ioc_role="source","External source IP observed by Suricata",ioc_role="destination","External destination IP contacted by a managed asset",true(),"")
+| eval ioc_tags="splunk,suricata,network-observable,high-confidence"
+| where affected_asset_is_managed="true"
+| eval min_suricata_severity=coalesce(min_suricata_severity,99)
+| eval signature_text=lower(mvjoin(signatures," "))
+| eval risk_score=case(min_suricata_severity=1,85,min_suricata_severity=2,70,true(),60)
+| eval risk_score=if(match(signature_text,"malware|trojan|cnc|c2"),if(risk_score+10>100,100,risk_score+10),risk_score)
+| eval soc_severity=case(risk_score>=90,"critical",risk_score>=70,"high",risk_score>=40,"medium",true(),"low")
+| eval schema_version="1.0",detection_id="DET-NET-001",detection_name="Suricata High Confidence Threat",alert_source="Suricata IDS/IPS"
+| eval mitre_tactic=if(match(signature_text,"exploit"),"Initial Access","Command and Control")
+| eval mitre_technique_id=if(match(signature_text,"exploit"),"T1190","T1071")
+| eval mitre_technique=if(match(signature_text,"exploit"),"Exploit Public-Facing Application","Application Layer Protocol")
+| eval alert_tags="splunk,suricata,ids,malware,c2,exploit,high-confidence"
+| eval alert_source_event_time=strftime(last_seen,"%Y-%m-%dT%H:%M:%S%z"),event_time=alert_source_event_time
+| eval time_bucket=floor(last_seen/900)*900
+| eval dedup_key=md5(detection_id."|".src_ip."|".dest_ip."|".mvjoin(signature_ids,",")."|".time_bucket)
+| eval alert_source_ref="SURI-HIGHCONF-".dedup_key
+| eval alert_title="Suricata High Confidence Threat [".upper(soc_severity)."] ".src_ip." to ".dest_ip
+| eval alert_description="Suricata detected a high-confidence Malware/C2/Exploit event. Source=".src_ip."; Destination=".dest_ip."; Signatures=".mvjoin(signatures," | ")."; RiskScore=".risk_score
+| eval dest_port=mvjoin(dest_ports,",")
+| table first_seen last_seen event_time alert_source_event_time alert_title alert_description alert_source alert_source_ref dedup_key schema_version detection_id detection_name risk_score soc_severity mitre_tactic mitre_technique_id mitre_technique alert_tags affected_asset_name affected_asset_hostname affected_asset_ip affected_asset_is_managed asset_role asset_criticality asset_zone asset_type_id asset_description asset_tags ioc_type ioc_value ioc_role ioc_description ioc_tags src_ip dest_ip dest_port proto alert_count signatures signature_ids categories severities dest_ports

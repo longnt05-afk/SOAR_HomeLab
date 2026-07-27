@@ -1,0 +1,53 @@
+index=win10sysmon (EventCode=1 OR EventID=1)
+| eval process_image=coalesce(Image,'EventData.Image',ProcessName,process_path,"")
+| eval command_line=coalesce(CommandLine,'EventData.CommandLine',process,"")
+| eval parent_image=coalesce(ParentImage,'EventData.ParentImage',"")
+| eval user_name=coalesce(User,'EventData.User',user,"unknown")
+| eval computer_name=upper(trim(coalesce(Computer,'System.Computer',ComputerName,host,"UNKNOWN")))
+| eval asset_hostname=upper(mvindex(split(computer_name,"."),0))
+| eval process_guid=coalesce(ProcessGuid,'EventData.ProcessGuid',"")
+| eval process_id=tostring(coalesce(ProcessId,'EventData.ProcessId',""))
+| eval hashes=coalesce(Hashes,'EventData.Hashes',"")
+| eval process_name=lower(replace(process_image,"^.*\\\\",""))
+| eval parent_process_name=lower(replace(parent_image,"^.*\\\\",""))
+| eval command_line_lc=lower(command_line)
+| eval encoded_switch=if(match(command_line,"(?i)(^|[[:space:]])-(e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)([[:space:]]+|:|=)"),1,0)
+| where in(process_name,"powershell.exe","pwsh.exe") AND encoded_switch=1
+| rex field=command_line max_match=1 "(?i)(?:^|[[:space:]])-(?:e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)(?:[[:space:]]+|[:=][[:space:]]*)(?<encoded_payload>[A-Za-z0-9+/]{20,}={0,2})"
+| eval payload_length=if(isnull(encoded_payload),0,len(encoded_payload))
+| eval flag_download=if(match(command_line_lc,"downloadstring|downloadfile|invoke-webrequest|start-bitstransfer|net\.webclient|curl\.exe|wget\.exe"),1,0)
+| eval flag_execution=if(match(command_line_lc,"invoke-expression|iex[[:space:](']|frombase64string|reflection\.assembly|add-type"),1,0)
+| eval flag_evasion=if(match(command_line_lc,"-nop|-noprofile|-noninteractive|-w[[:space:]]+hidden|-windowstyle[[:space:]]+hidden|-ep[[:space:]]+bypass|-executionpolicy[[:space:]]+bypass"),1,0)
+| eval flag_suspicious_parent=if(in(parent_process_name,"winword.exe","excel.exe","outlook.exe","powerpnt.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe","regsvr32.exe","wmiprvse.exe"),1,0)
+| eval risk_score=60+if(payload_length>0,5,0)+(flag_download*15)+(flag_execution*10)+(flag_evasion*10)+(flag_suspicious_parent*15)+if(len(command_line)>=500,5,0)
+| eval risk_score=if(risk_score>100,100,risk_score)
+| eval soc_severity=case(risk_score>=90,"critical",risk_score>=70,"high",true(),"medium")
+| lookup soc_assets asset_hostname as asset_hostname OUTPUT asset_name asset_ip asset_role criticality as asset_criticality zone as asset_zone is_managed as asset_is_managed iris_asset_type_id as asset_type_id
+| eval asset_name=coalesce(asset_name,asset_hostname)
+| eval asset_is_managed=lower(coalesce(asset_is_managed,"false"))
+| eval asset_description="Managed Windows endpoint monitored by Sysmon"
+| eval asset_tags="windows,endpoint,sysmon,managed,soc-lab"
+| rex field=hashes "(?i)(?:^|,)[[:space:]]*SHA256=(?<file_hash>[A-F0-9]{64})"
+| eval file_hash=coalesce(file_hash,SHA256,"")
+| eval event_time=strftime(_time,"%Y-%m-%dT%H:%M:%S%z")
+| eval alert_source_event_time=event_time
+| eval alert_source="Splunk - Sysmon"
+| eval schema_version="1.0"
+| eval detection_id="DET-WIN-001"
+| eval detection_name="PowerShell EncodedCommand"
+| eval mitre_tactic="Execution"
+| eval mitre_technique_id="T1059.001"
+| eval mitre_technique="Command and Scripting Interpreter: PowerShell"
+| eval alert_tags="splunk,sysmon,powershell,encodedcommand,execution,T1059.001"
+| eval dedup_material=if(len(process_guid)>0,process_guid,asset_hostname."|".process_id."|".md5(command_line)."|".tostring(_time))
+| eval dedup_key=md5(detection_id."|".dedup_material)
+| eval alert_source_ref="SPL-SYSMON-T1059.001-".dedup_key
+| eval source_ref=alert_source_ref
+| eval alert_title="PowerShell EncodedCommand [".upper(soc_severity)."] on ".asset_name
+| eval alert_description="Sysmon Event ID 1 detected ".process_name." using an EncodedCommand parameter. User=".user_name."; Parent=".parent_process_name."; RiskScore=".risk_score."; CommandLine=".substr(command_line,1,900)
+| eval user=user_name
+| eval process_path=process_image
+| eval parent_process=parent_image
+| eval raw_event=substr(_raw,1,12000)
+| dedup dedup_key
+| table _time event_time alert_source_event_time alert_title alert_description alert_source source_ref alert_source_ref dedup_key soc_severity risk_score mitre_tactic mitre_technique_id mitre_technique alert_tags schema_version detection_id detection_name asset_name asset_hostname asset_ip asset_role asset_criticality asset_zone asset_is_managed asset_type_id asset_description asset_tags user user_name process_name process_image process_path parent_process_name parent_image parent_process process_id process_guid command_line encoded_payload payload_length hashes file_hash raw_event

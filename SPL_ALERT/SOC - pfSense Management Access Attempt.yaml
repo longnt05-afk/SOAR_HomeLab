@@ -1,0 +1,34 @@
+index=pfsense (dest_ip="172.16.1.1" OR dest_ip="192.168.168.157") (dest_port=22 OR dest_port=80 OR dest_port=443 OR dest_port=8443)
+| search action=block OR action=reject OR action=pass
+| stats count as event_count values(action) as actions values(dest_port) as dest_ports values(interface) as interfaces values(protocol) as protocols min(_time) as first_seen max(_time) as last_seen by src_ip dest_ip
+| where event_count>=3
+| lookup soc_assets asset_ip as src_ip OUTPUT asset_name as src_asset_name asset_hostname as src_asset_hostname is_managed as src_is_managed
+| eval affected_asset_hostname="PFSENSE"
+| lookup soc_assets asset_hostname as affected_asset_hostname OUTPUT asset_name as affected_asset_name asset_role criticality as asset_criticality zone as asset_zone is_managed as affected_asset_is_managed iris_asset_type_id as asset_type_id
+| eval affected_asset_name=coalesce(affected_asset_name,"pfSense-Firewall")
+| eval affected_asset_ip=dest_ip
+| eval affected_asset_is_managed=lower(coalesce(affected_asset_is_managed,"true"))
+| eval asset_description="Managed pfSense firewall management interface"
+| eval asset_tags="managed-asset,pfsense,firewall,management-interface,soc-lab"
+| eval src_is_managed=lower(coalesce(src_is_managed,"false"))
+| eval ioc_value=if(src_is_managed="false",src_ip,"")
+| eval ioc_role=if(len(ioc_value)>0,"source","")
+| eval ioc_type=case(len(ioc_value)=0,"",match(ioc_value,":"),"ipv6",true(),"ipv4")
+| eval ioc_description=if(len(ioc_value)>0,"Unmanaged source attempting access to pfSense management services","")
+| eval ioc_tags="splunk,pfsense,management-access,network-observable"
+| eval action_text=lower(mvjoin(actions,","))
+| eval risk_score=55+if(src_is_managed="false",10,0)+if(match(action_text,"pass"),15,0)+if(event_count>=10,10,0)
+| eval risk_score=if(risk_score>100,100,risk_score)
+| eval soc_severity=case(risk_score>=90,"critical",risk_score>=70,"high",risk_score>=40,"medium",true(),"low")
+| eval schema_version="1.0",detection_id="DET-FW-002",detection_name="pfSense Management Access Attempt",alert_source="pfSense Firewall"
+| eval mitre_tactic="Initial Access",mitre_technique_id="T1133",mitre_technique="External Remote Services"
+| eval alert_tags="splunk,pfsense,firewall,management-access,T1133"
+| eval alert_source_event_time=strftime(last_seen,"%Y-%m-%dT%H:%M:%S%z"),event_time=alert_source_event_time
+| eval time_bucket=floor(last_seen/900)*900
+| eval dedup_key=md5(detection_id."|".src_ip."|".dest_ip."|".mvjoin(dest_ports,",")."|".time_bucket)
+| eval alert_source_ref="PFSENSE-MGMT-".dedup_key
+| eval alert_title="pfSense Management Access [".upper(soc_severity)."] from ".src_ip
+| eval alert_description="Access attempts to pfSense management services. Source=".src_ip."; Destination=".dest_ip."; Ports=".mvjoin(dest_ports,",")."; Actions=".mvjoin(actions,",")."; Count=".event_count."; RiskScore=".risk_score
+| eval dest_port=mvjoin(dest_ports,",")
+| eval proto=mvjoin(protocols,",")
+| table first_seen last_seen event_time alert_source_event_time alert_title alert_description alert_source alert_source_ref dedup_key schema_version detection_id detection_name risk_score soc_severity mitre_tactic mitre_technique_id mitre_technique alert_tags affected_asset_name affected_asset_hostname affected_asset_ip affected_asset_is_managed asset_role asset_criticality asset_zone asset_type_id asset_description asset_tags ioc_type ioc_value ioc_role ioc_description ioc_tags src_ip dest_ip dest_port proto event_count actions dest_ports interfaces protocols

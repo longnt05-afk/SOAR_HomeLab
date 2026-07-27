@@ -1,0 +1,73 @@
+index=suricata
+| spath
+| search event_type="alert"
+| eval signature=coalesce('alert.signature',signature,""), signature_id=tostring(coalesce('alert.signature_id',signature_id,"")), category=coalesce('alert.category',category,""), suricata_severity=tostring(coalesce('alert.severity',severity,""))
+| eval ids_action=lower(trim(coalesce('alert.action',action,"unknown"))), verdict_action=lower(trim(coalesce('verdict.action',verdict_action,"unknown")))
+| eval sensor_interface=coalesce(in_iface,iface,interface,"unknown"), app_protocol=coalesce(app_proto,"unknown")
+| eval signature_text=lower(signature), category_text=lower(category)
+| eval attack_type=case(match(category_text,"denial[ _-]?of[ _-]?service|(^|[^a-z0-9])(dos|ddos)([^a-z0-9]|$)") OR match(signature_text,"denial[ _-]?of[ _-]?service|(^|[^a-z0-9])(dos|ddos)([^a-z0-9]|$)|(^|[^a-z0-9])(syn|udp|icmp|http)[ _-]?flood([^a-z0-9]|$)"),"dos_activity",match(signature_text,"(^|[^a-z0-9])(nmap|masscan|zmap|port[ _-]?scan|network[ _-]?scan|service[ _-]?scan|scan|scanner|scanning)([^a-z0-9]|$)") OR match(category_text,"(^|[^a-z0-9])(scan|scanner|scanning)([^a-z0-9]|$)"),"port_scan",true(),"")
+| where len(attack_type)>0
+| eval event_enforcement=case(verdict_action="drop" OR match(ids_action,"^(blocked|drop|reject)$"),"blocked",match(ids_action,"^(allowed|pass|alert)$") OR match(verdict_action,"^(allowed|pass|alert)$"),"allowed",true(),"unknown")
+| eval blocked_flag=if(event_enforcement="blocked",1,0), allowed_flag=if(event_enforcement="allowed",1,0)
+| stats count as alert_count dc(flow_id) as unique_flow_count dc(dest_port) as unique_dest_ports values(src_port) as src_ports values(dest_port) as dest_ports values(signature) as signatures values(signature_id) as signature_ids values(category) as categories values(suricata_severity) as suricata_severities values(ids_action) as ids_actions values(verdict_action) as verdict_actions values(sensor_interface) as interfaces values(app_protocol) as app_protocols sum(blocked_flag) as blocked_alerts sum(allowed_flag) as allowed_alerts latest(flow_id) as sample_flow_id latest(community_id) as sample_community_id latest(pcap_cnt) as sample_pcap_count latest(_raw) as raw_event min(_time) as first_seen max(_time) as last_seen by attack_type src_ip dest_ip proto
+| eval unknown_alerts=alert_count-blocked_alerts-allowed_alerts
+| eval enforcement_status=case(blocked_alerts=alert_count AND blocked_alerts>0,"blocked",blocked_alerts>0,"partial",allowed_alerts=alert_count AND allowed_alerts>0,"allowed",true(),"unknown")
+| where (attack_type="port_scan" AND (blocked_alerts>=3 OR unique_dest_ports>=5 OR unique_flow_count>=3 OR alert_count>=5)) OR (attack_type="dos_activity" AND alert_count>=1)
+| lookup soc_assets asset_ip as src_ip
+OUTPUT asset_hostname as src_asset_hostname
+asset_name as src_asset_name
+asset_role as src_asset_role
+asset_type as src_asset_type
+criticality as src_criticality
+zone as src_zone
+is_managed as src_is_managed
+iris_asset_type_id as src_asset_type_id
+| lookup soc_assets asset_ip as dest_ip
+OUTPUT asset_hostname as dest_asset_hostname
+asset_name as dest_asset_name
+asset_role as dest_asset_role
+asset_type as dest_asset_type
+criticality as dest_criticality
+zone as dest_zone
+is_managed as dest_is_managed
+iris_asset_type_id as dest_asset_type_id
+| eval src_is_managed=lower(trim(coalesce(src_is_managed,"false"))),dest_is_managed=lower(trim(coalesce(dest_is_managed,"false")))
+| eval src_criticality=lower(trim(coalesce(src_criticality,"unknown"))),dest_criticality=lower(trim(coalesce(dest_criticality,"unknown")))
+| eval src_is_authorized_scanner=if(src_is_managed="true" AND lower(coalesce(src_asset_role,""))="authorized_security_scanner","true","false")
+| eval simulation_context=if(src_is_authorized_scanner="true","authorized_simulation","unverified_activity")
+| eval traffic_direction=case(src_is_managed="false" AND dest_is_managed="true","inbound",src_is_managed="true" AND dest_is_managed="false","outbound",src_is_managed="true" AND dest_is_managed="true","lateral_lab",true(),"unknown")
+| eval affected_side=case(src_is_managed="false" AND dest_is_managed="true","dest",src_is_managed="true" AND dest_is_managed="false","src",src_is_managed="true" AND dest_is_managed="true","dest",true(),"none")
+| eval affected_asset_ip=case(affected_side="src",src_ip,affected_side="dest",dest_ip,true(),"")
+| eval affected_asset_name=case(affected_side="src",coalesce(src_asset_name,src_asset_hostname,src_ip),affected_side="dest",coalesce(dest_asset_name,dest_asset_hostname,dest_ip),true(),"")
+| eval affected_asset_hostname=case(affected_side="src",src_asset_hostname,affected_side="dest",dest_asset_hostname,true(),"")
+| eval asset_role=case(affected_side="src",src_asset_role,affected_side="dest",dest_asset_role,true(),""), asset_criticality=case(affected_side="src",src_criticality,affected_side="dest",dest_criticality,true(),""), asset_zone=case(affected_side="src",src_zone,affected_side="dest",dest_zone,true(),""), asset_type_id=case(affected_side="src",src_asset_type_id,affected_side="dest",dest_asset_type_id,true(),"")
+| eval affected_asset_is_managed=if(affected_side!="none","true","false")
+| where affected_asset_is_managed="true"
+| eval asset_description="Managed asset associated with Suricata scan or DoS activity", asset_tags="managed-asset,network,suricata,".attack_type.",soc-lab"
+| eval ioc_side=case(src_is_managed="false" AND dest_is_managed="true","src",src_is_managed="true" AND dest_is_managed="false","dest",true(),"none")
+| eval ioc_value=case(ioc_side="src",src_ip,ioc_side="dest",dest_ip,true(),""), ioc_role=case(ioc_side="src","source",ioc_side="dest","destination",true(),"")
+| eval ioc_type=case(len(ioc_value)=0,"",match(ioc_value,"^[0-9]{1,3}(\.[0-9]{1,3}){3}$"),"ipv4",match(ioc_value,":"),"ipv6",true(),"")
+| eval ioc_description=if(len(ioc_value)>0,"Unverified external network observable associated with Suricata ".attack_type." activity; not automatically confirmed malicious",""), ioc_tags=if(len(ioc_value)>0,"splunk,suricata,network-observable,unverified,".attack_type,""), ioc_confidence=if(len(ioc_value)>0,"unverified","")
+| eval risk_base=if(attack_type="dos_activity",55,45)
+| eval risk_activity=case(attack_type="port_scan" AND unique_dest_ports>=20,20,attack_type="port_scan" AND unique_dest_ports>=10,15,attack_type="port_scan" AND unique_dest_ports>=5,10,attack_type="dos_activity" AND alert_count>=20,20,attack_type="dos_activity" AND alert_count>=10,15,attack_type="dos_activity" AND alert_count>=5,10,true(),0)
+| eval risk_enforcement=case(enforcement_status="allowed",10,enforcement_status="partial",5,enforcement_status="unknown",5,true(),0)
+| eval risk_source=case(simulation_context="authorized_simulation",-15,traffic_direction="inbound",10,true(),0)
+| eval risk_asset=case(lower(asset_criticality)="critical",10,lower(asset_criticality)="high",7,lower(asset_criticality)="medium",4,true(),0)
+| eval risk_score=risk_base+risk_activity+risk_enforcement+risk_source+risk_asset
+| eval risk_score=case(risk_score>100,100,risk_score<0,0,true(),risk_score)
+| eval risk_breakdown="base=".risk_base."|activity=".risk_activity."|enforcement=".risk_enforcement."|source=".risk_source."|asset=".risk_asset
+| eval soc_severity=case(risk_score>=90,"critical",risk_score>=70,"high",risk_score>=40,"medium",true(),"low")
+| eval schema_version="1.0", detection_version="2.0", detection_id="DET-NET-003", detection_name="Suricata Scan & DoS Activity with IDS/IPS Context", alert_source="Suricata IDS/IPS"
+| eval mitre_tactic=if(attack_type="port_scan","Discovery","Impact"), mitre_technique_id=if(attack_type="port_scan","T1046","T1498"), mitre_technique=if(attack_type="port_scan","Network Service Discovery","Network Denial of Service")
+| eval alert_tags="splunk,suricata,network,".attack_type.",".enforcement_status.",".simulation_context.",".mitre_technique_id
+| eval alert_source_event_time=strftime(last_seen,"%Y-%m-%dT%H:%M:%S%z"), event_time=alert_source_event_time
+| eval episode_key=md5(detection_id."|".attack_type."|".src_ip."|".dest_ip."|".proto), episode_bucket=floor(last_seen/1800)*1800
+| eval dedup_key=md5(episode_key."|".episode_bucket), alert_source_ref="SURI-NET-".dedup_key
+| eval dest_ports_truncated=if(unique_dest_ports>50,"true","false"), dest_ports=mvindex(mvsort(dest_ports),0,49)
+| eval signature_summary=substr(mvjoin(signatures," | "),1,600), dest_port=coalesce(mvjoin(dest_ports,","),""), src_port=coalesce(mvjoin(mvsort(src_ports),","),"")
+| eval investigation_query="index=suricata event_type=alert src_ip=".src_ip." dest_ip=".dest_ip." earliest=".tostring(first_seen-60)." latest=".tostring(last_seen+60)
+| eval alert_title="Suricata [".upper(soc_severity)."][".upper(attack_type)."][".upper(enforcement_status)."] ".src_ip." to ".dest_ip
+| eval alert_description="Suricata detected ".attack_type." activity. Source=".src_ip."; Destination=".dest_ip."; Direction=".traffic_direction."; Alerts=".alert_count."; UniqueFlows=".unique_flow_count."; UniqueDestPorts=".unique_dest_ports."; IPSStatus=".enforcement_status."; Blocked=".blocked_alerts."; Allowed=".allowed_alerts."; Unknown=".unknown_alerts."; Context=".simulation_context."; RiskScore=".risk_score." [".risk_breakdown."]; Signatures=".signature_summary
+| eval signatures=mvjoin(signatures," | "), signature_ids=mvjoin(signature_ids,","), categories=mvjoin(categories," | "), suricata_severities=mvjoin(suricata_severities,","), ids_actions=mvjoin(ids_actions,","), verdict_actions=mvjoin(verdict_actions,","), interfaces=mvjoin(interfaces,","), app_protocols=mvjoin(app_protocols,",")
+| eval sample_flow_id=tostring(coalesce(sample_flow_id,"")), sample_community_id=coalesce(sample_community_id,""), sample_pcap_count=tostring(coalesce(sample_pcap_count,"")), raw_event=substr(coalesce(raw_event,""),1,12000)
+| table first_seen last_seen event_time alert_source_event_time alert_title alert_description alert_source alert_source_ref episode_key dedup_key schema_version detection_version detection_id detection_name risk_score risk_breakdown soc_severity mitre_tactic mitre_technique_id mitre_technique alert_tags attack_type traffic_direction simulation_context enforcement_status blocked_alerts allowed_alerts unknown_alerts alert_count unique_flow_count unique_dest_ports affected_asset_name affected_asset_hostname affected_asset_ip affected_asset_is_managed asset_role asset_criticality asset_zone asset_type_id asset_description asset_tags src_asset_name src_asset_hostname src_asset_role src_criticality src_zone src_is_managed dest_asset_name dest_asset_hostname dest_asset_role dest_criticality dest_zone dest_is_managed ioc_type ioc_value ioc_role ioc_description ioc_tags ioc_confidence src_ip src_port dest_ip dest_port dest_ports_truncated proto interfaces app_protocols signatures signature_ids categories suricata_severities ids_actions verdict_actions sample_flow_id sample_community_id sample_pcap_count investigation_query raw_event

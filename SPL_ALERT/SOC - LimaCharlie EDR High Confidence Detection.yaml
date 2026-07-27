@@ -1,0 +1,155 @@
+index=edr
+| spath input=_raw path=cat output=detection_name
+| spath input=_raw path=author output=lc_author
+| spath input=_raw path=source output=lc_source
+| spath input=_raw path=source_rule output=lc_source_rule
+| spath input=_raw path=detect_id output=lc_detect_id
+| spath input=_raw path=priority output=lc_priority
+| spath input=_raw path=detect_mtd.level output=lc_level
+| spath input=_raw path=detect_mtd.tactic output=lc_metadata_tactic
+| spath input=_raw path=detect_mtd.technique output=lc_metadata_technique
+| spath input=_raw path=link output=lc_timeline_link
+| spath input=_raw path=routing.sid output=lc_sensor_id
+| spath input=_raw path=routing.event_id output=lc_event_id
+| spath input=_raw path=routing.event_time output=lc_event_time
+| spath input=_raw path=routing.event_type output=lc_event_type
+| spath input=_raw path=routing.hostname output=lc_hostname
+| spath input=_raw path=routing.int_ip output=lc_internal_ip
+| spath input=_raw path=routing.this output=process_entity_id
+| spath input=_raw path=routing.parent output=parent_entity_id
+| spath input=_raw path=detect.event.FILE_PATH output=process_image
+| spath input=_raw path=detect.event.COMMAND_LINE output=command_line
+| spath input=_raw path=detect.event.USER_NAME output=user_name
+| spath input=_raw path=detect.event.PROCESS_ID output=lc_process_id
+| spath input=_raw path=detect.event.PROCESS_GUID output=process_guid
+| spath input=_raw path=detect.event.HASH output=file_hash
+| spath input=_raw path=detect.event.PARENT.FILE_PATH output=parent_image
+| spath input=_raw path=detect.event.PARENT.PROCESS_ID output=parent_process_id
+| spath input=_raw path=detect.event.NETWORK_ACTIVITY.DESTINATION.IP_ADDRESS output=remote_ip_address
+| spath input=_raw path=detect.event.NETWORK_ACTIVITY.DESTINATION.ADDRESS output=remote_address
+| eval detection_name=trim(coalesce(detection_name,lc_source_rule,lc_author,""))
+| where len(detection_name)>0
+| eval lc_level=lower(trim(coalesce(lc_level,"")))
+| eval lc_priority=tostring(coalesce(lc_priority,""))
+| eval lc_event_epoch=tonumber(lc_event_time)
+| eval lc_event_epoch=if(lc_event_epoch>100000000000,lc_event_epoch/1000,lc_event_epoch)
+| eval lc_event_epoch=coalesce(lc_event_epoch,_time)
+| eval computer_name=upper(trim(coalesce(lc_hostname,host,"UNKNOWN")))
+| eval asset_hostname=upper(mvindex(split(computer_name,"."),0))
+| eval process_image=coalesce(process_image,"")
+| eval command_line=coalesce(command_line,"")
+| eval user_name=coalesce(user_name,"unknown")
+| eval parent_image=coalesce(parent_image,"")
+| eval process_name=lower(replace(process_image,"^.*\\\\",""))
+| eval parent_process_name=lower(replace(parent_image,"^.*\\\\",""))
+| eval process_id=tostring(coalesce(lc_process_id,""))
+| eval process_guid=coalesce(process_guid,"")
+| eval process_entity_id=coalesce(process_entity_id,"")
+| eval parent_entity_id=coalesce(parent_entity_id,"")
+| eval lc_sensor_id=coalesce(lc_sensor_id,"")
+| eval lc_event_id=coalesce(lc_event_id,"")
+| eval remote_ip=coalesce(remote_ip_address,remote_address,"")
+| eval event_key=case(
+    len(lc_sensor_id)>0 AND len(lc_event_id)>0,lc_sensor_id."|".lc_event_id,
+    len(lc_sensor_id)>0 AND len(process_entity_id)>0,lc_sensor_id."|entity|".process_entity_id,
+    true(),asset_hostname."|fallback|".md5(command_line)."|".tostring(round(lc_event_epoch,0))
+  )
+| lookup lc_caseworthy_rules.csv detection_name OUTPUT signal_role AS mapped_signal_role base_risk AS mapped_base_risk
+| eval is_soteria=if(match(lower(coalesce(lc_author,"")." ".coalesce(lc_source_rule,"")),"_soteria"),1,0)
+| eval signal_role=upper(coalesce(mapped_signal_role,case(
+    lc_level="critical" OR lc_level="high","PRIMARY",
+    is_soteria=1,"PRIMARY",
+    true(),"IGNORE"
+  )))
+| eval base_risk=tonumber(coalesce(mapped_base_risk,case(
+    lc_level="critical",90,
+    lc_level="high",80,
+    is_soteria=1,90,
+    signal_role="SUPPORTING",40,
+    true(),0
+  )))
+| eval primary_signal=if(signal_role="PRIMARY",1,0)
+| eventstats max(base_risk) AS event_max_risk BY event_key
+| eval primary_candidate=if(primary_signal=1 AND base_risk=event_max_risk,detection_name,null())
+| stats
+    earliest(lc_event_epoch) AS event_epoch
+    latest(lc_event_epoch) AS last_seen_epoch
+    count AS raw_detection_hits
+    max(primary_signal) AS primary_signal
+    max(event_max_risk) AS event_max_risk
+    values(detection_name) AS matched_rules
+    values(primary_candidate) AS primary_candidates
+    values(lc_detect_id) AS lc_detection_ids
+    values(lc_source_rule) AS lc_source_rules
+    values(lc_priority) AS lc_priorities
+    values(lc_level) AS lc_rule_levels
+    values(lc_metadata_tactic) AS lc_metadata_tactics
+    values(lc_metadata_technique) AS lc_metadata_techniques
+    values(lc_timeline_link) AS lc_timeline_links
+    values(remote_ip) AS remote_ips
+    first(asset_hostname) AS asset_hostname
+    first(process_name) AS process_name
+    first(process_image) AS process_image
+    first(process_id) AS process_id
+    first(process_guid) AS process_guid
+    first(process_entity_id) AS process_entity_id
+    first(parent_entity_id) AS parent_entity_id
+    first(parent_process_id) AS parent_process_id
+    first(command_line) AS command_line
+    first(user_name) AS user_name
+    first(parent_process_name) AS parent_process_name
+    first(parent_image) AS parent_image
+    first(file_hash) AS file_hash
+    first(lc_sensor_id) AS lc_sensor_id
+    first(lc_event_id) AS lc_event_id
+    first(lc_event_type) AS lc_event_type
+    first(lc_internal_ip) AS lc_internal_ip
+    first(_raw) AS raw_event
+  BY event_key
+| where primary_signal=1
+| eval _time=event_epoch
+| eval primary_detection=mvindex(mvsort(primary_candidates),0)
+| eval matched_rule_count=mvcount(matched_rules)
+| eval matched_rules_text=mvjoin(matched_rules," | ")
+| eval lc_timeline_link=mvindex(lc_timeline_links,0)
+| eval remote_ip=mvindex(remote_ips,0)
+| eval lc_metadata_tactic=mvindex(lc_metadata_tactics,0)
+| eval lc_metadata_technique=mvindex(lc_metadata_techniques,0)
+| lookup lc_caseworthy_rules.csv detection_name AS primary_detection OUTPUT base_risk AS primary_base_risk mitre_tactic AS mapped_mitre_tactic mitre_technique_id AS mapped_mitre_technique_id mitre_technique AS mapped_mitre_technique
+| eval risk_score=tonumber(coalesce(primary_base_risk,event_max_risk,70))
+| eval soc_severity=case(risk_score>=90,"critical",risk_score>=70,"high",risk_score>=40,"medium",true(),"low")
+| eval mitre_tactic=coalesce(mapped_mitre_tactic,lc_metadata_tactic,"Unmapped")
+| eval mitre_technique_id=coalesce(mapped_mitre_technique_id,lc_metadata_technique,"")
+| eval mitre_technique=coalesce(mapped_mitre_technique,"Unmapped")
+| eval rule_name=primary_detection
+| lookup soc_assets asset_hostname AS asset_hostname OUTPUT asset_name asset_ip asset_role criticality AS asset_criticality zone AS asset_zone is_managed AS asset_is_managed iris_asset_type_id AS asset_type_id
+| eval asset_name=coalesce(asset_name,asset_hostname)
+| eval asset_ip=coalesce(asset_ip,lc_internal_ip)
+| eval asset_is_managed=lower(coalesce(asset_is_managed,"false"))
+| eval asset_description="Managed endpoint monitored by LimaCharlie EDR"
+| eval asset_tags="managed-asset,endpoint,limacharlie,edr,soc-lab"
+| lookup soc_assets asset_ip AS remote_ip OUTPUT is_managed AS remote_is_managed
+| eval remote_is_managed=lower(coalesce(remote_is_managed,"false"))
+| eval candidate_ioc_type=case(match(remote_ip,"^[0-9]{1,3}(\.[0-9]{1,3}){3}$"),"ipv4",match(remote_ip,":"),"ipv6",true(),"")
+| eval ioc_value=if(len(candidate_ioc_type)>0 AND remote_is_managed="false",remote_ip,"")
+| eval ioc_type=if(len(ioc_value)>0,candidate_ioc_type,"")
+| eval ioc_role=if(len(ioc_value)>0,"destination","")
+| eval ioc_description=if(len(ioc_value)>0,"Remote network observable associated with a LimaCharlie EDR detection","")
+| eval ioc_tags="splunk,limacharlie,edr,network-observable"
+| eval schema_version="2.0"
+| eval pipeline_version="LimaCharlie Case-Worthy Exact-Dedup V2"
+| eval detection_id="DET-EDR-001"
+| eval detection_name="LimaCharlie EDR High Confidence Detection"
+| eval alert_source="LimaCharlie EDR"
+| eval alert_tags="splunk,limacharlie,edr,endpoint,case-worthy,v2"
+| eval event_time=strftime(event_epoch,"%Y-%m-%dT%H:%M:%S%z")
+| eval first_seen=event_time
+| eval last_seen=strftime(last_seen_epoch,"%Y-%m-%dT%H:%M:%S%z")
+| eval alert_source_event_time=event_time
+| eval dedup_key=md5(detection_id."|".event_key)
+| eval alert_source_ref="LC-EDR-V2-".dedup_key
+| eval alert_title="LimaCharlie EDR [".upper(soc_severity)."] ".primary_detection." on ".asset_name
+| eval alert_description="LimaCharlie detected a case-worthy endpoint event. Primary=".primary_detection."; MatchedRules=".matched_rules_text."; Host=".asset_name."; User=".user_name."; Process=".process_name."; RiskScore=".risk_score."; CommandLine=".substr(command_line,1,900)
+| eval raw_event=substr(raw_event,1,12000)
+| eval dest_ip=remote_ip
+| table _time event_time first_seen last_seen alert_source_event_time alert_title alert_description alert_source alert_source_ref dedup_key schema_version pipeline_version detection_id detection_name primary_signal primary_detection matched_rules matched_rule_count raw_detection_hits risk_score soc_severity mitre_tactic mitre_technique_id mitre_technique alert_tags event_key lc_sensor_id lc_event_id lc_event_type lc_detection_ids lc_source_rules lc_priorities lc_rule_levels lc_timeline_link asset_name asset_hostname asset_ip asset_is_managed asset_role asset_criticality asset_zone asset_type_id asset_description asset_tags user_name process_name process_image process_id process_guid process_entity_id parent_entity_id parent_process_id command_line parent_process_name parent_image file_hash ioc_type ioc_value ioc_role ioc_description ioc_tags dest_ip remote_ip rule_name raw_event
