@@ -13,10 +13,10 @@ This ransomware simulation campaign is designed to validate endpoint, network, E
 - T1685.19 - Disable or Modify Tools
 - T1070.001 - Clear Windows Event Logs => T1685.005
 - T1036.007 - Double File Extension
-- T1218.005 - Mshta [Optional]
-- T1218.007 - Msiexec [Optional]
-- T1218.010 - Regsvr32 [Optional]
-- T1218.011 - Rundll32 [Optional]
+- T1218.005 - Mshta 
+- T1218.007 - Msiexec 
+- T1218.010 - Regsvr32 
+- T1218.011 - Rundll32 
 
 ### Phase 4 - Discovery
 - T1082 - System Information Discovery
@@ -24,13 +24,13 @@ This ransomware simulation campaign is designed to validate endpoint, network, E
 - T1083 - File and Directory Discovery
 - T1135 - Network Share Discovery
 - T1016 - System Network Configuration Discovery
-- T1018 - Remote System Discovery [Optional]
+- T1018 - Remote System Discovery 
 
 ### Phase 5 - Collection & Exfiltration / Double Extortion
 - T1560 - Archive Collected Data
-- T1567.002 - Exfiltration to Cloud Storage [Optional]
-- T1567.004 - Exfiltration Over Webhook [Optional]
-- T1041 - Exfiltration Over C2 Channel [Optional]
+- T1567.002 - Exfiltration to Cloud Storage 
+- T1567.004 - Exfiltration Over Webhook 
+- T1041 - Exfiltration Over C2 Channel 
 
 ### Phase 6 - Defense / Recovery Impact
 - T1490 - Inhibit System Recovery
@@ -38,4 +38,4 @@ This ransomware simulation campaign is designed to validate endpoint, network, E
 
 ### Phase 7 - Ransomware Impact
 - T1486 - Data Encrypted for Impact
-- T1529 - System Shutdown/Reboot [Optional]
+- T1529 - System Shutdown/Reboot 
